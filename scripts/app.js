@@ -1150,6 +1150,11 @@
                     drawBoreholeSVG();
                 }
 
+                // 대시보드 업데이트
+                if (typeof updateDashboardTable === 'function') {
+                    updateDashboardTable();
+                }
+
                 hideLoading();
             } catch (error) {
                 hideLoading();
@@ -11145,4 +11150,362 @@ ${htmlContent}
                                      parseFloat(document.getElementById('reviewAllowableSettlement')?.value ||
                                                 document.getElementById('allowableSettlement')?.value || 25)
             };
+        }
+
+        // ===== 대시보드 모듈 =====
+
+        /** @type {{key: string, direction: 'asc'|'desc'}} 대시보드 테이블 정렬 설정 */
+        let dashboardSortConfig = { key: 'holeNo', direction: 'asc' };
+
+        /** 토질 태그 확장 상태 저장 */
+        window.expandedSoilTags = window.expandedSoilTags || {};
+
+        /**
+         * 대시보드 테이블 전체 업데이트
+         * 시추공 데이터를 기반으로 대시보드 통계와 테이블을 갱신합니다.
+         */
+        function updateDashboardTable() {
+            if (!boreholeData || boreholeData.length === 0) return;
+
+            // 대시보드 탭 버튼 표시
+            const dashboardTab = document.getElementById('mainTabDashboard');
+            if (dashboardTab) dashboardTab.style.display = 'flex';
+
+            // 통계 업데이트
+            updateDashboardStats();
+
+            // 토질 필터 옵션 업데이트
+            updateSoilFilterOptions();
+
+            // 테이블 렌더링
+            renderDashboardTable();
+        }
+
+        /**
+         * 대시보드 통계 업데이트
+         */
+        function updateDashboardStats() {
+            const count = boreholeData.length;
+            const avgGL = boreholeData.reduce((sum, bh) => sum + (parseFloat(bh.groundElevation) || 0), 0) / count;
+
+            // 지하수위 평균
+            const bhWithGW = boreholeData.filter(bh => bh.waterTableElevation != null);
+            const avgGW = bhWithGW.length > 0 ? bhWithGW.reduce((sum, bh) => sum + bh.waterTableElevation, 0) / bhWithGW.length : null;
+
+            // 풍화암 평균
+            const bhWithWR = boreholeData.filter(bh => bh.weatheredRockElevation && bh.weatheredRockElevation !== '-');
+            const avgWR = bhWithWR.length > 0 ? bhWithWR.reduce((sum, bh) => sum + parseFloat(bh.weatheredRockElevation), 0) / bhWithWR.length : null;
+
+            const setStatText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+
+            setStatText('statTotalCount', `${count}공`);
+            setStatText('statAvgGL', avgGL ? `EL.${avgGL >= 0 ? '+' : ''}${avgGL.toFixed(2)}m` : '-');
+            setStatText('statAvgGW', avgGW ? `EL.${avgGW >= 0 ? '+' : ''}${avgGW.toFixed(2)}m` : '-');
+            setStatText('statAvgWR', avgWR ? `EL.${avgWR >= 0 ? '+' : ''}${avgWR.toFixed(2)}m` : '-');
+        }
+
+        /**
+         * 토질 필터 옵션 생성
+         */
+        function updateSoilFilterOptions() {
+            const select = document.getElementById('dashboardSoilFilter');
+            if (!select) return;
+
+            const soilTypes = new Set();
+            boreholeData.forEach(bh => {
+                if (bh.soilData) {
+                    bh.soilData.forEach(layer => {
+                        if (layer.soil_name) soilTypes.add(layer.soil_name);
+                    });
+                }
+            });
+
+            select.innerHTML = '<option value="all">모든 토질</option>';
+            Array.from(soilTypes).sort().forEach(type => {
+                select.innerHTML += `<option value="${type}">${type}</option>`;
+            });
+        }
+
+        /**
+         * 대시보드 테이블 필터링
+         */
+        function filterDashboardTable() {
+            renderDashboardTable();
+        }
+
+        /**
+         * 대시보드 테이블 정렬
+         */
+        function sortDashboardTable(key) {
+            if (dashboardSortConfig.key === key) {
+                dashboardSortConfig.direction = dashboardSortConfig.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                dashboardSortConfig.key = key;
+                dashboardSortConfig.direction = 'asc';
+            }
+            renderDashboardTable();
+        }
+
+        /**
+         * 대시보드 테이블 렌더링
+         */
+        function renderDashboardTable() {
+            const tbody = document.getElementById('dashboardTableBody');
+            if (!tbody || !boreholeData || boreholeData.length === 0) return;
+
+            const searchTerm = (document.getElementById('dashboardSearch')?.value || '').toLowerCase();
+            const soilFilter = document.getElementById('dashboardSoilFilter')?.value || 'all';
+
+            // 필터링
+            let filteredData = boreholeData.filter(bh => {
+                const matchSearch = bh.holeNo.toLowerCase().includes(searchTerm);
+                const matchSoil = soilFilter === 'all' || (bh.soilData && bh.soilData.some(l => l.soil_name === soilFilter));
+                return matchSearch && matchSoil;
+            });
+
+            // 정렬
+            filteredData.sort((a, b) => {
+                let aVal, bVal;
+                switch (dashboardSortConfig.key) {
+                    case 'holeNo':
+                        const extractNum = (str) => {
+                            const match = str.match(/(\d+)/g);
+                            return match ? parseInt(match[match.length - 1]) : 0;
+                        };
+                        aVal = extractNum(a.holeNo);
+                        bVal = extractNum(b.holeNo);
+                        break;
+                    case 'groundLevel':
+                        aVal = parseFloat(a.groundElevation) || 0;
+                        bVal = parseFloat(b.groundElevation) || 0;
+                        break;
+                    case 'gwLevel':
+                        aVal = a.waterTableElevation ?? -9999;
+                        bVal = b.waterTableElevation ?? -9999;
+                        break;
+                    case 'weatheredRock':
+                        aVal = (a.weatheredRockElevation && a.weatheredRockElevation !== '-') ? parseFloat(a.weatheredRockElevation) : -9999;
+                        bVal = (b.weatheredRockElevation && b.weatheredRockElevation !== '-') ? parseFloat(b.weatheredRockElevation) : -9999;
+                        break;
+                    case 'softRock':
+                        aVal = (a.softRockPlusElevation && a.softRockPlusElevation !== '-') ? parseFloat(a.softRockPlusElevation) : -9999;
+                        bVal = (b.softRockPlusElevation && b.softRockPlusElevation !== '-') ? parseFloat(b.softRockPlusElevation) : -9999;
+                        break;
+                    case 'endLevel':
+                        aVal = a.boreholeEndElevation ? parseFloat(a.boreholeEndElevation) : -9999;
+                        bVal = b.boreholeEndElevation ? parseFloat(b.boreholeEndElevation) : -9999;
+                        break;
+                    default:
+                        aVal = a[dashboardSortConfig.key];
+                        bVal = b[dashboardSortConfig.key];
+                }
+                if (dashboardSortConfig.direction === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                }
+                return aVal < bVal ? 1 : -1;
+            });
+
+            // 렌더링
+            tbody.innerHTML = filteredData.map(bh => {
+                const gl = parseFloat(bh.groundElevation) || 0;
+                const gwEL = bh.waterTableElevation;
+                const wrEL = (bh.weatheredRockElevation && bh.weatheredRockElevation !== '-') ? parseFloat(bh.weatheredRockElevation) : null;
+                const srEL = (bh.softRockPlusElevation && bh.softRockPlusElevation !== '-') ? parseFloat(bh.softRockPlusElevation) : null;
+                const endEL = bh.boreholeEndElevation ? parseFloat(bh.boreholeEndElevation) : null;
+
+                const sparkline = generateNValueSparkline(bh);
+                const soilTags = generateSoilTags(bh);
+
+                return `
+                    <tr style="border-bottom: 1px solid #F0F0F0;" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='white'">
+                        <td style="padding: 10px 8px; font-weight: 600; color: #1F2937; font-size: 13px;">${bh.holeNo}</td>
+                        <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(gl)}</td>
+                        <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(gwEL)}</td>
+                        <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(wrEL)}</td>
+                        <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(srEL)}</td>
+                        <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(endEL)}</td>
+                        <td style="padding: 10px 8px; text-align: center;">${sparkline}</td>
+                        <td style="padding: 10px 8px;">${soilTags}</td>
+                        <td style="padding: 10px 8px; text-align: center;">
+                            <button onclick="showBoreholeDetail('${bh.holeNo}')"
+                                style="color: #0284C7; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 500;">
+                                로그 보기
+                            </button>
+                        </td>
+                        <td style="padding: 10px 8px; text-align: center;">
+                            <button onclick="deleteBorehole('${bh.holeNo}')"
+                                style="color: #EF4444; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;"
+                                title="${bh.holeNo} 삭제">
+                                X
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #9E9E9E;">검색 결과가 없습니다</td></tr>';
+            }
+        }
+
+        /**
+         * 표고 값 형식화
+         */
+        function formatEL(value) {
+            if (value === null || value === undefined || isNaN(value)) return '-';
+            return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+        }
+
+        /**
+         * N값 스파크라인 생성 (SVG 미니 차트)
+         */
+        function generateNValueSparkline(bh) {
+            if (!bh.sptData || bh.sptData.length === 0) return '<span style="color: #9E9E9E;">-</span>';
+
+            const maxN = 50;
+            const width = 70;
+            const height = 18;
+
+            const nValues = bh.sptData.map(s => Math.min(s.nValue || 0, maxN));
+
+            const points = nValues.map((n, i) => {
+                const x = (i / (nValues.length - 1 || 1)) * width;
+                const y = height - (n / maxN) * height;
+                return `${x},${y}`;
+            }).join(' ');
+
+            return `
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <svg width="${width}" height="${height}">
+                        <polyline points="${points}" fill="none" stroke="#546E7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            `;
+        }
+
+        /**
+         * 지층 색상 태그 생성
+         */
+        function generateSoilTags(bh) {
+            if (!bh.soilData || bh.soilData.length === 0) return '-';
+
+            const soilColors = {
+                '매립층': { bg: '#78716C', text: '#FFFFFF' },
+                '매립토': { bg: '#78716C', text: '#FFFFFF' },
+                '성토': { bg: '#78716C', text: '#FFFFFF' },
+                '붕적층': { bg: '#A8A29E', text: '#1F2937' },
+                '퇴적층': { bg: '#9CA3AF', text: '#1F2937' },
+                '충적층': { bg: '#D2B48C', text: '#1F2937' },
+                '풍화잔류토': { bg: '#92816B', text: '#FFFFFF' },
+                '잔류토': { bg: '#92816B', text: '#FFFFFF' },
+                '풍화토': { bg: '#92816B', text: '#FFFFFF' },
+                '풍화암': { bg: '#57534E', text: '#FFFFFF' },
+                '연암': { bg: '#44403C', text: '#FFFFFF' },
+                '경암': { bg: '#292524', text: '#FFFFFF' },
+                '보통암': { bg: '#3F3F46', text: '#FFFFFF' },
+                '점토': { bg: '#A0522D', text: '#FFFFFF' },
+                '실트': { bg: '#BC8F8F', text: '#1F2937' },
+                '모래': { bg: '#F4A460', text: '#1F2937' },
+                '사질토': { bg: '#F4A460', text: '#1F2937' },
+                '자갈': { bg: '#CD853F', text: '#FFFFFF' }
+            };
+
+            function getLayerColor(name) {
+                if (soilColors[name]) return soilColors[name];
+                for (const [key, colors] of Object.entries(soilColors)) {
+                    if (name.includes(key)) return colors;
+                }
+                return { bg: '#6B7280', text: '#FFFFFF' };
+            }
+
+            const holeNo = bh.holeNo;
+            const isExpanded = window.expandedSoilTags[holeNo];
+            const totalLayers = bh.soilData.length;
+            const defaultShowCount = 7;
+            const layers = isExpanded ? bh.soilData : bh.soilData.slice(0, defaultShowCount);
+            const remaining = totalLayers - defaultShowCount;
+
+            let html = `<div style="display: flex; flex-wrap: wrap; gap: 3px; align-items: center;">`;
+
+            layers.forEach((layer) => {
+                const name = layer.soil_name || 'Unknown';
+                const colors = getLayerColor(name);
+
+                let depthInfo = '';
+                if (layer.depth_range) {
+                    const match = layer.depth_range.match(/(\d+\.?\d*)\s*~\s*(\d+\.?\d*)/);
+                    if (match) {
+                        const thickness = (parseFloat(match[2]) - parseFloat(match[1])).toFixed(1);
+                        depthInfo = thickness + 'm';
+                    }
+                }
+
+                html += `<span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background: ${colors.bg}; color: ${colors.text}; display: inline-flex; align-items: center; gap: 3px;" title="${name} (${layer.depth_range || ''})">${name}${depthInfo ? '<span style="opacity:0.8;font-size:9px;">'+depthInfo+'</span>' : ''}</span>`;
+            });
+
+            if (remaining > 0) {
+                if (isExpanded) {
+                    html += `<span onclick="event.stopPropagation(); collapseSoilTags('${holeNo}')" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #DBEAFE; color: #1D4ED8; cursor: pointer; border: 1px solid #93C5FD;">접기</span>`;
+                } else {
+                    html += `<span onclick="event.stopPropagation(); expandSoilTags('${holeNo}')" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #FEF3C7; color: #92400E; cursor: pointer; border: 1px solid #FCD34D;">+${remaining} 더보기</span>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        /**
+         * 지층 태그 펼치기
+         */
+        function expandSoilTags(holeNo) {
+            window.expandedSoilTags[holeNo] = true;
+            renderDashboardTable();
+        }
+
+        /**
+         * 지층 태그 접기
+         */
+        function collapseSoilTags(holeNo) {
+            window.expandedSoilTags[holeNo] = false;
+            renderDashboardTable();
+        }
+
+        /**
+         * 시추공 상세 보기 (시추주상도 탭으로 이동)
+         */
+        function showBoreholeDetail(holeNo) {
+            // 시추주상도 탭으로 전환
+            const boreholeTab = document.querySelector('[data-tab="borehole"]');
+            if (boreholeTab) {
+                boreholeTab.click();
+            }
+            // 해당 시추공 선택 (boreholeSelect가 있으면)
+            const boreholeSelect = document.getElementById('boreholeSelect');
+            if (boreholeSelect) {
+                boreholeSelect.value = holeNo;
+                boreholeSelect.dispatchEvent(new Event('change'));
+            }
+        }
+
+        /**
+         * 시추공 삭제
+         */
+        function deleteBorehole(holeNo) {
+            if (!confirm(`${holeNo} 시추공을 삭제하시겠습니까?`)) return;
+
+            const index = boreholeData.findIndex(bh => bh.holeNo === holeNo);
+            if (index > -1) {
+                boreholeData.splice(index, 1);
+                updateDashboardTable();
+                // 다른 모듈들도 업데이트
+                if (typeof populateSoilParameterTable === 'function') {
+                    populateSoilParameterTable();
+                }
+                if (typeof updateSummaryTable === 'function') {
+                    updateSummaryTable();
+                }
+            }
         }

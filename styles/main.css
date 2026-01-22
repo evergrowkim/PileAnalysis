@@ -661,6 +661,68 @@
             border-top: 1px solid var(--border-secondary);
         }
 
+        /* ===== 대시보드 스타일 ===== */
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .dashboard-table-wrapper {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .dashboard-table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dashboard-table-wrapper th {
+            position: sticky;
+            top: 0;
+            background: #F8FAFC;
+            z-index: 1;
+        }
+
+        .dashboard-table-wrapper tbody tr:hover {
+            background: #F8F9FA;
+        }
+
+        /* 반응형 대시보드 */
+        @media (max-width: 1200px) {
+            .dashboard-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .dashboard-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Responsive Design */
         @media (max-width: 1400px) {
             .app-container {
