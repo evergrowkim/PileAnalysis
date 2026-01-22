@@ -1,0 +1,928 @@
+{
+  "metadata": {
+    "title": "파일(말뚝)기초 허용지지력 산정 공식",
+    "standard": "KDS 11 50 40 (구조물기초설계기준)",
+    "version": "2.0",
+    "last_updated": "2025-01-15",
+    "author": "Doaz Inc. - GeoAI Suite",
+    "description": "AI 알고리즘 구현을 위한 파일기초 설계 공식 및 계수 정의서"
+  },
+
+  "constants": {
+    "gravity": {
+      "symbol": "g",
+      "value": 9.81,
+      "unit": "m/s²"
+    },
+    "water_unit_weight": {
+      "symbol": "γw",
+      "value": 10,
+      "unit": "kN/m³",
+      "description": "물의 단위중량"
+    },
+    "atmospheric_pressure": {
+      "symbol": "Pa",
+      "value": 100,
+      "unit": "kN/m²",
+      "description": "대기압 (암반 주면마찰력 계산용)"
+    }
+  },
+
+  "material_properties": {
+    "steel_pipe_pile": {
+      "elastic_modulus": {
+        "symbol": "E",
+        "value": 2.05e8,
+        "unit": "kN/m²"
+      },
+      "yield_strength": {
+        "symbol": "fy",
+        "typical_values": [235000, 315000, 355000],
+        "unit": "kN/m²",
+        "grades": ["SS400", "SM490", "SM520"]
+      }
+    },
+    "phc_pile": {
+      "elastic_modulus": {
+        "symbol": "E",
+        "value": 4.0e7,
+        "unit": "kN/m²"
+      },
+      "grades": {
+        "A": { "compressive_strength": 78.5, "unit": "MPa" },
+        "B": { "compressive_strength": 88.3, "unit": "MPa" },
+        "C": { "compressive_strength": 98.1, "unit": "MPa" }
+      }
+    },
+    "cast_in_place": {
+      "elastic_modulus_formula": "4700 * sqrt(fck)",
+      "elastic_modulus_unit": "MPa",
+      "typical_fck": [24, 27, 30, 35, 40]
+    }
+  },
+
+  "vertical_bearing_capacity": {
+    "description": "연직 허용지지력 산정",
+    "main_formula": {
+      "expression": "Ra = (1/Fs) * (Rp + Rf) - We",
+      "latex": "R_a = \\frac{1}{F_s}(R_p + R_f) - W_e",
+      "variables": {
+        "Ra": {
+          "name": "연직 허용지지력",
+          "unit": "kN"
+        },
+        "Rp": {
+          "name": "극한 선단지지력",
+          "formula": "qp * Ap",
+          "unit": "kN"
+        },
+        "Rf": {
+          "name": "극한 주면마찰력",
+          "formula": "Σ(fs * As)",
+          "unit": "kN"
+        },
+        "Fs": {
+          "name": "안전율",
+          "value": 3.0,
+          "note": "정역학적 공식 기준"
+        },
+        "We": {
+          "name": "유효 자중",
+          "formula": "Wpile - (Vsub * γw)",
+          "unit": "kN",
+          "description": "지하수위 아래 부력 고려"
+        }
+      }
+    },
+
+    "safety_factors": {
+      "static_formula": 3.0,
+      "static_load_test_ultimate": 2.0,
+      "static_load_test_yield": 1.5,
+      "dynamic_load_test": 2.5,
+      "dynamic_formula": {
+        "engineering_news": 6.0,
+        "hiley": 3.0
+      },
+      "temporary_structure": 2.0
+    },
+
+    "ultimate_tip_resistance": {
+      "symbol": "qp",
+      "unit": "kN/m²",
+      
+      "driven_pile": {
+        "sandy_soil": {
+          "formula": "300 * N",
+          "closed_end": "300 * N",
+          "open_end": "150 * N",
+          "limit": 15000,
+          "limit_unit": "kN/m²",
+          "N_definition": "말뚝 선단 상부 1D ~ 하부 4D 구간의 평균 N값"
+        },
+        "clayey_soil": {
+          "formula": "9 * cu",
+          "limit": 9000,
+          "limit_unit": "kN/m²",
+          "cu_definition": "비배수 전단강도 (kN/m²)"
+        }
+      },
+
+      "prebored_pile": {
+        "sandy_soil": {
+          "formula": "α * N",
+          "coefficients": {
+            "α_range": [150, 250],
+            "α_recommended": 200,
+            "α_LH_formula": 250
+          },
+          "limit": 12000,
+          "limit_unit": "kN/m²",
+          "note": "SIP/SDA 공법 기준"
+        },
+        "clayey_soil": {
+          "formula": "6 * cu",
+          "alternative": "100 * N",
+          "limit": 6000,
+          "limit_unit": "kN/m²",
+          "note": "점성토 선단지지력은 보수적으로 미적용하는 경우 많음"
+        },
+        "weathered_rock": {
+          "formula": "β * N'",
+          "coefficients": {
+            "β_range": [300, 400],
+            "β_recommended": 350
+          },
+          "limit": 15000,
+          "limit_unit": "kN/m²",
+          "N_prime_definition": "50/관입량(cm), N' 최대 300 적용"
+        }
+      },
+
+      "cast_in_place": {
+        "sandy_soil": {
+          "formula": "57.4 * N",
+          "N_limit": 75,
+          "limit": 4500,
+          "limit_unit": "kN/m²"
+        },
+        "clayey_soil": {
+          "formula": "6 * cu",
+          "limit": 4000,
+          "limit_unit": "kN/m²"
+        },
+        "rock": {
+          "goodman_formula": "qu * (Nφ + 1)",
+          "Nφ_formula": "tan²(45 + φ/2)",
+          "cfem_formula": "Ksp * qu",
+          "Ksp_by_RQD": {
+            "0-70": 0.1,
+            "70-100": 0.4
+          },
+          "qu_definition": "암석 일축압축강도 (kN/m²)"
+        }
+      }
+    },
+
+    "ultimate_shaft_resistance": {
+      "symbol": "fs",
+      "unit": "kN/m²",
+
+      "driven_pile": {
+        "sandy_soil": {
+          "formula": "2 * Ns",
+          "limit": 200,
+          "limit_unit": "kN/m²",
+          "Ns_definition": "해당 층의 평균 N값"
+        },
+        "clayey_soil": {
+          "formula_option1": "α * cu",
+          "formula_option2": "10 * Ns",
+          "α_method": {
+            "description": "Tomlinson α method",
+            "α_values": {
+              "cu_less_than_25": 1.0,
+              "cu_25_to_50": 0.9,
+              "cu_50_to_100": 0.7,
+              "cu_greater_than_100": 0.5
+            }
+          },
+          "limit": 150,
+          "limit_unit": "kN/m²"
+        }
+      },
+
+      "prebored_pile": {
+        "sandy_soil": {
+          "formula": "β * Ns",
+          "coefficients": {
+            "β_range": [1.0, 2.5],
+            "β_recommended": 2.0
+          },
+          "limit": 150,
+          "limit_unit": "kN/m²"
+        },
+        "clayey_soil": {
+          "formula_option1": "5 * Ns",
+          "formula_option2": "0.8 * cu",
+          "limit": 150,
+          "limit_unit": "kN/m²",
+          "cu_limit": 125
+        },
+        "weathered_rock": {
+          "formula": "γ * N'",
+          "coefficients": {
+            "γ_range": [3, 5],
+            "γ_recommended": 4
+          },
+          "limit": 200,
+          "limit_unit": "kN/m²"
+        }
+      },
+
+      "cast_in_place": {
+        "sandy_soil": {
+          "formula": "β * Ns",
+          "coefficients": {
+            "β_range": [1.0, 2.0],
+            "β_recommended": 1.5
+          },
+          "limit": 200,
+          "limit_unit": "kN/m²"
+        },
+        "clayey_soil": {
+          "formula": "α * cu",
+          "α_range": [0.3, 0.6],
+          "limit": 100,
+          "limit_unit": "kN/m²"
+        },
+        "rock": {
+          "horvath_kenney_formula": "0.65 * Pa * sqrt(qu / Pa)",
+          "limit_ratio": "0.05 * qu"
+        }
+      }
+    },
+
+    "N_value_processing": {
+      "tip_N_value": {
+        "range": {
+          "above_tip": "1D",
+          "below_tip": "4D"
+        },
+        "method": "arithmetic_mean",
+        "max_value": 60,
+        "note": "선단 N값은 60을 초과하여도 60으로 제한"
+      },
+      "shaft_N_value": {
+        "method": "layer_weighted_average",
+        "formula": "Σ(Ni * Li) / Σ(Li)",
+        "max_value_sandy": 50,
+        "max_value_clayey": 30
+      }
+    },
+
+    "pile_area_calculation": {
+      "tip_area": {
+        "symbol": "Ap",
+        "circular": "π * D² / 4",
+        "H_pile": "flange_width * web_depth"
+      },
+      "shaft_area": {
+        "symbol": "As",
+        "circular": "π * D * L",
+        "H_pile": "2 * (flange_width + web_depth) * L"
+      }
+    }
+  },
+
+  "horizontal_bearing_capacity": {
+    "description": "수평(횡방향) 허용지지력 산정",
+    "design_approach": "Chang's Method(변위기준)와 Broms' Method(파괴기준) 중 작은 값 채택",
+
+    "subgrade_reaction_coefficient": {
+      "symbol": "kh",
+      "unit": "kN/m³",
+      "description": "수평지반반력계수",
+
+      "primary_formula": {
+        "name": "도로교설계기준 유도식",
+        "priority": 1,
+        "formula": "kh = kh0 * (BH / 0.3)^(-0.75)",
+        "kh0_formula": "(1/0.3) * α * E0",
+        "variables": {
+          "α": {
+            "description": "보정계수",
+            "normal_condition": 1.0,
+            "seismic_condition": 2.0
+          },
+          "E0": {
+            "description": "지반변형계수",
+            "formula_general": "700 * N",
+            "formula_weathered": "2800 * N",
+            "unit": "kN/m²",
+            "selection_criteria": {
+              "general_soil": {
+                "condition": "N < 30",
+                "E0": "700 * N"
+              },
+              "dense_soil_or_weathered": {
+                "condition": "N >= 30",
+                "E0": "2800 * N"
+              }
+            }
+          },
+          "BH": {
+            "description": "환산재하폭",
+            "formula": "sqrt(D / β)",
+            "note": "반복계산 필요, 통상 D보다 큼"
+          },
+          "β": {
+            "description": "특성값",
+            "formula": "(kh * D / (4 * E * I))^0.25",
+            "unit": "1/m"
+          }
+        }
+      },
+
+      "reference_formulas": {
+        "fukuoka": {
+          "name": "후쿠오카 식",
+          "priority": 2,
+          "formula": "6910 * N^0.406",
+          "unit": "kN/m³",
+          "applicable": "점성토 지반"
+        },
+        "yokoyama": {
+          "name": "요코야마 식",
+          "priority": 2,
+          "formula": "2000 * N",
+          "unit": "kN/m³",
+          "applicable": "사질토 지반"
+        }
+      },
+
+      "selection_logic": {
+        "step1": "도로교 유도식으로 1차 계산",
+        "step2": "참고식(후쿠오카/요코야마)으로 비교 검증",
+        "step3": "현장 재하시험 데이터 있으면 우선 적용",
+        "step4": "합리적 공학적 판단으로 최종 결정",
+        "note": "단순 최솟값 적용 지양, 지반조건 고려 필요"
+      },
+
+      "N_to_kh_table": {
+        "description": "N값별 지반변형계수 및 횡방향 지반반력계수 참고표",
+        "unit_E0": "kN/m²",
+        "unit_kh": "kN/m³",
+        "values": [
+          { "N": 10, "E0_general": 7000, "E0_weathered": 28000, "kh_508x12t": 7790, "kh_609x12t": 6985 },
+          { "N": 20, "E0_general": 14000, "E0_weathered": 56000, "kh_508x12t": 16738, "kh_609x12t": 15008 },
+          { "N": 30, "E0_general": 21000, "E0_weathered": 84000, "kh_508x12t": 26182, "kh_609x12t": 23476 },
+          { "N": 40, "E0_general": 28000, "E0_weathered": 112000, "kh_508x12t": 35964, "kh_609x12t": 32247 },
+          { "N": 50, "E0_general": 35000, "E0_weathered": 140000, "kh_508x12t": 46000, "kh_609x12t": 41250 }
+        ]
+      }
+    },
+
+    "chang_method": {
+      "name": "Chang의 방법 (변위 기준)",
+      "description": "허용변위 기준 수평지지력 산정",
+      "formula": "Ha = (kh * D * ya) / β",
+      "latex": "H_a = \\frac{k_h \\cdot D \\cdot y_a}{\\beta}",
+      "variables": {
+        "Ha": {
+          "name": "수평 허용지지력",
+          "unit": "kN"
+        },
+        "kh": {
+          "name": "수평지반반력계수",
+          "unit": "kN/m³"
+        },
+        "D": {
+          "name": "말뚝 직경 (또는 환산폭)",
+          "unit": "m"
+        },
+        "ya": {
+          "name": "허용변위",
+          "unit": "m",
+          "typical_values": {
+            "permanent_structure": 0.015,
+            "temporary_structure": 0.025
+          }
+        },
+        "β": {
+          "name": "특성값",
+          "formula": "(kh * D / (4 * E * I))^0.25",
+          "unit": "1/m"
+        }
+      },
+      "iteration_required": true,
+      "iteration_note": "kh와 β가 상호 종속적이므로 수렴 시까지 반복계산 필요"
+    },
+
+    "broms_method": {
+      "name": "Broms의 방법 (파괴 기준)",
+      "description": "극한 수평지지력 산정 후 안전율 적용",
+
+      "pile_classification": {
+        "long_pile_criterion": {
+          "cohesive_soil": "β * L > 2.25",
+          "cohesionless_soil": "η * L > 4.0"
+        },
+        "η_formula": "(kh / (E * I))^0.2"
+      },
+
+      "cohesive_soil": {
+        "short_pile_free_head": {
+          "formula": "Hu = 2 * cu * D * (L - 1.5*D) + 2 * cu * D * f",
+          "simplified": "Hu = 9 * cu * D * (L - 1.5*D)"
+        },
+        "long_pile_free_head": {
+          "formula": "Hu = My / (e + 1.5*D + 0.5*f)",
+          "My_definition": "말뚝 항복모멘트"
+        }
+      },
+
+      "cohesionless_soil": {
+        "short_pile_free_head": {
+          "formula": "Hu = 0.5 * γ * D * L² * Kp"
+        },
+        "long_pile_free_head": {
+          "formula": "Hu = My / (e + 0.67*f)",
+          "f_formula": "(Hu / (γ * D * Kp))^0.5"
+        },
+        "Kp": {
+          "name": "수동토압계수",
+          "formula": "tan²(45 + φ/2)",
+          "typical_value": 3.0,
+          "note": "φ = 30° 기준"
+        }
+      },
+
+      "safety_factor": 2.0
+    },
+
+    "allowable_displacement": {
+      "permanent_structure": {
+        "value": 15,
+        "unit": "mm",
+        "description": "영구구조물 두부변위 허용치"
+      },
+      "temporary_structure": {
+        "value": 25,
+        "unit": "mm",
+        "description": "가설구조물 두부변위 허용치"
+      }
+    }
+  },
+
+  "pullout_capacity": {
+    "description": "인발 허용지지력 산정",
+    "main_formula": {
+      "expression": "Qpull = Qu / Fs + Wp",
+      "latex": "Q_{pull} = \\frac{Q_u}{F_s} + W_p",
+      "variables": {
+        "Qpull": {
+          "name": "허용 인발지지력",
+          "unit": "kN"
+        },
+        "Qu": {
+          "name": "극한 인발저항력",
+          "formula": "Σ(fs * As)",
+          "unit": "kN",
+          "note": "선단지지력 제외, 주면마찰력만 고려"
+        },
+        "Fs": {
+          "name": "안전율",
+          "value": 3.0
+        },
+        "Wp": {
+          "name": "유효 자중",
+          "formula": "Wpile - buoyancy",
+          "unit": "kN",
+          "description": "저항력으로 작용"
+        }
+      }
+    },
+
+    "pullout_shaft_resistance": {
+      "reduction_factor": {
+        "description": "압축 대비 인발 주면마찰력 저감",
+        "ratio": 0.8,
+        "note": "인발 시 주면마찰력은 압축의 70~80% 적용 권장"
+      },
+      "sandy_soil": {
+        "formula": "2.0 * Ns * reduction_factor",
+        "simplified": "1.6 * Ns",
+        "limit": 120,
+        "unit": "kN/m²"
+      },
+      "clayey_soil": {
+        "formula": "5.0 * Ns * reduction_factor",
+        "simplified": "4.0 * Ns",
+        "alternative": "0.64 * cu",
+        "limit": 120,
+        "unit": "kN/m²",
+        "note": "기존 6.25N → 압축의 80% 저감 적용하여 4.0~5.0N 권장"
+      }
+    },
+
+    "effective_weight": {
+      "formula": "Wp = wpile * Ltotal - Ap * Lsub * γw",
+      "variables": {
+        "wpile": {
+          "name": "말뚝 단위중량",
+          "unit": "kN/m"
+        },
+        "Ltotal": {
+          "name": "말뚝 전체길이",
+          "unit": "m"
+        },
+        "Lsub": {
+          "name": "지하수위 아래 말뚝길이",
+          "unit": "m"
+        }
+      }
+    }
+  },
+
+  "settlement": {
+    "description": "침하량 산정 (3성분 합산법)",
+    "main_formula": {
+      "expression": "Stotal = Ss + Sp + Sps",
+      "latex": "S_{total} = S_s + S_p + S_{ps}",
+      "components": {
+        "Ss": "말뚝 자체 탄성변형",
+        "Sp": "선단 하부 지반 침하",
+        "Sps": "주면마찰력에 의한 침하"
+      }
+    },
+
+    "elastic_compression": {
+      "symbol": "Ss",
+      "name": "말뚝 자체 탄성압축",
+      "formula": "Ss = (Qps + αs * Qfs) * L / (Ap * Ep)",
+      "latex": "S_s = \\frac{(Q_{ps} + \\alpha_s \\cdot Q_{fs}) \\cdot L}{A_p \\cdot E_p}",
+      "variables": {
+        "Qps": {
+          "name": "선단 전달 하중",
+          "formula": "Qall * tip_ratio",
+          "unit": "kN"
+        },
+        "Qfs": {
+          "name": "주면 전달 하중",
+          "formula": "Qall * shaft_ratio",
+          "unit": "kN"
+        },
+        "αs": {
+          "name": "주면마찰력 분포계수",
+          "value": 0.67,
+          "description": "삼각형 분포 가정",
+          "alternative": {
+            "uniform": 0.5,
+            "triangular": 0.67,
+            "parabolic": 0.6
+          }
+        },
+        "L": {
+          "name": "말뚝 길이",
+          "unit": "m"
+        },
+        "Ap": {
+          "name": "말뚝 단면적",
+          "unit": "m²"
+        },
+        "Ep": {
+          "name": "말뚝 탄성계수",
+          "unit": "kN/m²"
+        }
+      }
+    },
+
+    "tip_settlement": {
+      "symbol": "Sp",
+      "name": "선단 하부 지반 침하",
+      "formula": "Sp = (Cp * Qps) / (D * qp)",
+      "latex": "S_p = \\frac{C_p \\cdot Q_{ps}}{D \\cdot q_p}",
+      "variables": {
+        "Cp": {
+          "name": "경험계수",
+          "unit": "dimensionless"
+        },
+        "qp": {
+          "name": "극한 선단지지력도",
+          "unit": "kN/m²"
+        },
+        "D": {
+          "name": "말뚝 직경",
+          "unit": "m"
+        }
+      },
+      "Cp_values": {
+        "driven_pile": {
+          "sand_dense": 0.02,
+          "sand_loose": 0.04,
+          "clay_stiff": 0.02,
+          "clay_soft": 0.03,
+          "silt_dense": 0.03,
+          "silt_loose": 0.05
+        },
+        "prebored_pile": {
+          "sand_dense": 0.09,
+          "sand_loose": 0.18,
+          "sand_recommended": 0.12,
+          "clay_stiff": 0.03,
+          "clay_soft": 0.06,
+          "silt_dense": 0.09,
+          "silt_loose": 0.12,
+          "weathered_rock": 0.09
+        }
+      }
+    },
+
+    "shaft_settlement": {
+      "symbol": "Sps",
+      "name": "주면마찰력에 의한 침하",
+      "formula": "Sps = (Qfs * Cs) / (L * qp)",
+      "latex": "S_{ps} = \\frac{Q_{fs} \\cdot C_s}{L \\cdot q_p}",
+      "Cs_formula": {
+        "expression": "Cs = (0.93 + 0.16 * sqrt(L/D)) * Cp",
+        "description": "Vesic 변형식"
+      }
+    },
+
+    "allowable_settlement": {
+      "bridge": {
+        "value": 25,
+        "unit": "mm"
+      },
+      "general_building": {
+        "min": 25,
+        "max": 50,
+        "unit": "mm"
+      },
+      "critical_structure": {
+        "min": 15,
+        "max": 20,
+        "unit": "mm",
+        "examples": ["발전소", "정밀기계기초"]
+      },
+      "retaining_wall": {
+        "value": 50,
+        "unit": "mm"
+      },
+      "load_test_criterion": {
+        "terzaghi": 25,
+        "alternative": "D * 0.1",
+        "unit": "mm"
+      }
+    }
+  },
+
+  "group_pile_effect": {
+    "description": "무리말뚝 효율",
+
+    "efficiency_formulas": {
+      "converse_labarre": {
+        "formula": "η = 1 - θ * ((n-1)*m + (m-1)*n) / (90*m*n)",
+        "latex": "\\eta = 1 - \\frac{\\theta[(n-1)m + (m-1)n]}{90mn}",
+        "variables": {
+          "η": {
+            "name": "무리말뚝 효율",
+            "range": [0, 1]
+          },
+          "θ": {
+            "name": "각도",
+            "formula": "arctan(D/s)",
+            "unit": "degree"
+          },
+          "m": {
+            "name": "열 수"
+          },
+          "n": {
+            "name": "행 수"
+          },
+          "D": {
+            "name": "말뚝 직경",
+            "unit": "m"
+          },
+          "s": {
+            "name": "말뚝 중심간격",
+            "unit": "m"
+          }
+        }
+      },
+      "feld_rule": {
+        "description": "각 말뚝의 지지력은 인접 말뚝 1본당 1/16씩 감소",
+        "formula": "η_pile = 1 - (adjacent_piles / 16)"
+      }
+    },
+
+    "spacing_requirements": {
+      "end_bearing_sandy": {
+        "minimum": "2.5D",
+        "recommended": "3.0D"
+      },
+      "friction_clayey": {
+        "minimum": "3.0D",
+        "recommended": "3.5D ~ 4.0D"
+      },
+      "cast_in_place": {
+        "minimum": "2.0D",
+        "recommended": "2.5D ~ 3.0D"
+      },
+      "no_group_effect_threshold": "8.0D",
+      "note": "간격이 8D 이상이면 η ≈ 1.0 적용 가능"
+    },
+
+    "group_settlement": {
+      "equivalent_raft_method": {
+        "formula": "Sg = S * sqrt(Bg / D)",
+        "variables": {
+          "Sg": {
+            "name": "무리말뚝 침하량",
+            "unit": "mm"
+          },
+          "S": {
+            "name": "단일말뚝 침하량",
+            "unit": "mm"
+          },
+          "Bg": {
+            "name": "무리말뚝 폭",
+            "unit": "m"
+          }
+        }
+      }
+    }
+  },
+
+  "bearing_layer_criteria": {
+    "description": "지지층 판단 기준",
+    "sandy_soil": {
+      "adequate_layer": {
+        "N_range": "30 < N < 50"
+      },
+      "firm_layer": {
+        "N_range": "N > 50"
+      },
+      "pile_support_layer": {
+        "condition": "N > 30, 두께 5m 이상 연속"
+      }
+    },
+    "clayey_soil": {
+      "adequate_layer": {
+        "N_range": "20 < N < 50"
+      },
+      "firm_layer": {
+        "N_range": "N > 30"
+      },
+      "pile_support_layer": {
+        "condition": "N > 30, 두께 5m 이상 연속"
+      }
+    },
+    "weathered_rock": {
+      "condition": "50/10 ~ 50/5",
+      "N_prime": "N' = 50 / penetration(cm)"
+    },
+    "rock": {
+      "soft_rock": "qu > 10 MPa",
+      "hard_rock": "qu > 50 MPa",
+      "embedment": "최소 1D 이상 근입"
+    }
+  },
+
+  "calculation_workflow": {
+    "description": "계산 순서 및 알고리즘 흐름",
+
+    "step1_input_data": {
+      "order": 1,
+      "name": "입력 데이터 수집",
+      "required_inputs": [
+        "pile_type (타입/매입/현장타설)",
+        "pile_diameter (D)",
+        "pile_length (L)",
+        "pile_material (강관/PHC/콘크리트)",
+        "soil_profile (층별 토질정보)",
+        "N_values (층별 N값)",
+        "groundwater_level",
+        "design_load"
+      ]
+    },
+
+    "step2_soil_parameter": {
+      "order": 2,
+      "name": "지반정수 산정",
+      "tasks": [
+        "층별 토질 분류 (사질토/점성토/암반)",
+        "선단 N값 산정 (상1D~하4D 평균)",
+        "주면 N값 산정 (층별 가중평균)",
+        "cu 산정 (점성토인 경우)",
+        "E0 산정 (수평지지력용)"
+      ]
+    },
+
+    "step3_vertical_capacity": {
+      "order": 3,
+      "name": "연직 허용지지력 산정",
+      "sub_steps": [
+        "qp 산정 (공법/지반별 공식 적용)",
+        "fs 산정 (층별 적용 후 합산)",
+        "Rp = qp × Ap 계산",
+        "Rf = Σ(fs × As) 계산",
+        "We 계산 (부력 고려)",
+        "Ra = (Rp + Rf) / Fs - We"
+      ]
+    },
+
+    "step4_horizontal_capacity": {
+      "order": 4,
+      "name": "수평 허용지지력 산정",
+      "sub_steps": [
+        "E0 산정 (지반조건에 따라 700N or 2800N)",
+        "kh 산정 (반복계산)",
+        "β 산정",
+        "Chang's Method: Ha_chang = kh×D×ya/β",
+        "Broms' Method: Hu_broms 산정 후 안전율 적용",
+        "Ha = min(Ha_chang, Hu_broms/Fs)"
+      ]
+    },
+
+    "step5_pullout_capacity": {
+      "order": 5,
+      "name": "인발 허용지지력 산정",
+      "sub_steps": [
+        "인발 fs 산정 (압축의 80% 저감)",
+        "Qu = Σ(fs_pullout × As)",
+        "Wp 산정 (유효자중)",
+        "Qpull = Qu/Fs + Wp"
+      ]
+    },
+
+    "step6_settlement": {
+      "order": 6,
+      "name": "침하량 산정",
+      "sub_steps": [
+        "하중 분담율 가정 (선단/주면)",
+        "Ss 산정 (탄성압축)",
+        "Cp 선정 (지반/공법별)",
+        "Sp 산정 (선단침하)",
+        "Cs 산정",
+        "Sps 산정 (주면침하)",
+        "Stotal = Ss + Sp + Sps",
+        "허용침하량 비교 검토"
+      ]
+    },
+
+    "step7_group_effect": {
+      "order": 7,
+      "name": "무리말뚝 효과 검토",
+      "condition": "말뚝 간격 < 8D인 경우",
+      "sub_steps": [
+        "효율 η 산정 (Converse-Labarre)",
+        "Qa_group = n × Qa × η",
+        "무리말뚝 침하량 산정"
+      ]
+    },
+
+    "step8_verification": {
+      "order": 8,
+      "name": "검증 및 결과 출력",
+      "checks": [
+        "Ra ≥ 설계하중 (연직)",
+        "Ha ≥ 설계수평하중",
+        "Qpull ≥ 설계인발하중",
+        "Stotal ≤ 허용침하량",
+        "말뚝 본체 응력 검토"
+      ]
+    }
+  },
+
+  "validation_rules": {
+    "description": "계산 결과 검증 규칙",
+    "vertical": {
+      "qp_limits": {
+        "driven_sandy": { "max": 15000, "unit": "kN/m²" },
+        "prebored_sandy": { "max": 12000, "unit": "kN/m²" },
+        "cast_in_place": { "max": 6000, "unit": "kN/m²" }
+      },
+      "fs_limits": {
+        "general": { "max": 200, "unit": "kN/m²" },
+        "prebored": { "max": 150, "unit": "kN/m²" }
+      }
+    },
+    "horizontal": {
+      "displacement_check": {
+        "permanent": { "max": 15, "unit": "mm" },
+        "temporary": { "max": 25, "unit": "mm" }
+      }
+    },
+    "settlement": {
+      "bridge": { "max": 25, "unit": "mm" },
+      "building": { "max": 50, "unit": "mm" }
+    },
+    "group_efficiency": {
+      "min": 0.3,
+      "max": 1.0,
+      "warning_threshold": 0.5
+    }
+  }
+}

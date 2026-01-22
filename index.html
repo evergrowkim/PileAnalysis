@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>에너지토건 지반 에이전트</title>
+    
+    <!-- MathJax for LaTeX rendering -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processOkeyEscapes: true
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady();
+                }
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- html-docx-js for Word export -->
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <!-- Plotly.js for 3D visualization -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- proj4js for coordinate transformation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.min.js"></script>
+
+    <!-- jsPDF and html2canvas for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <!-- Loading Spinner -->
+    <div class="loading" id="loadingSpinner">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="app-container">
+        <!-- Hidden inputs for backward compatibility -->
+        <div style="display: none;">
+            <input type="text" id="projectName">
+            <input type="text" id="projectLocation">
+            <select id="pileTypeSelector"><option value="phc" selected>PHC</option><option value="steel">Steel</option></select>
+            <select id="phcPileType"><option value="500-B" selected>500-B</option></select>
+            <select id="steelStandard"><option value="KS F 4602" selected>KS</option></select>
+            <select id="steelMaterial"><option value="SKK400" selected>SKK400</option></select>
+            <select id="steelDiameter"><option value="508.0" selected>508</option></select>
+            <select id="steelThickness"><option value="9.3" selected>9.3</option></select>
+            <select id="steelCoating"><option value="NONE" selected>NONE</option></select>
+            <select id="bearingLayer"><option value="weathered_rock" selected>weathered_rock</option></select>
+            <input type="number" id="penetrationDepth" value="1.0">
+            <select id="constructionMethod"><option value="bored" selected>bored</option></select>
+            <select id="spliceMethod"><option value="none" selected>none</option></select>
+            <input type="number" id="targetGroundElevation" value="0">
+            <input type="number" id="fillNValue" value="8">
+            <input type="number" id="sfVertical" value="3.0">
+            <input type="number" id="sfHorizontal" value="2.0">
+            <input type="number" id="sfPullout" value="3.0">
+            <input type="number" id="allowableSettlement" value="25">
+            <input type="number" id="allowableLateralDisplacement" value="1.5">
+            <input type="number" id="endBearingCoefficient" value="300">
+            <input type="number" id="steelPhcCostRatio" value="1.5">
+            <div id="groundModificationStatus"></div>
+            <div id="fillInputs"></div>
+            <div id="phcPileOptions"></div>
+            <div id="steelPileOptions"></div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Tab Navigation -->
+            <nav class="tab-nav">
+                <button class="tab-button active" data-tab="inputReview">입력 검토</button>
+                <button class="tab-button" data-tab="overview">종합 검토</button>
+                <button class="tab-button" data-tab="borehole">시추주상도</button>
+                <button class="tab-button" data-tab="calculations">상세 계산</button>
+                <button class="tab-button" data-tab="charts">분석 결과</button>
+                <button class="tab-button" data-tab="sensitivity">민감도 분석</button>
+                <button class="tab-button" data-tab="report">보고서</button>
+                <button class="tab-button" data-tab="appendix">부록</button>
+            </nav>
+
+            <!-- Tab Content Area -->
+            <div class="tab-content">
+                <!-- Input Review Tab - 입력 검토 -->
+                <div class="tab-panel active" id="tab-inputReview">
+                    <div class="input-review-container" style="padding: 20px;">
+                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">
+                            <span style="margin-right: 10px;">📋</span>입력 데이터 검토 및 설계 파라미터 설정
+                        </h2>
+
+                        <!-- Data Upload Section -->
+                        <div class="review-section" id="dataUploadSection" style="margin-bottom: 30px;">
+                            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--primary-steel);">
+                                <h3 style="color: var(--primary-steel); margin: 0;">
+                                    <span style="margin-right: 8px;">📁</span>데이터 업로드
+                                </h3>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 20px; padding: 15px; background: var(--bg-light); border-radius: 8px; border: 2px dashed var(--border-color);">
+                                <div style="flex: 1;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--primary-navy);">시추주상도 데이터 (JSON)</label>
+                                    <input type="file" id="boringLogFile" class="form-input" accept=".json"
+                                           style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: white;">
+                                </div>
+                                <div id="uploadStatus" style="min-width: 200px; padding: 10px; border-radius: 4px; text-align: center; background: #f5f5f5; color: var(--text-muted);">
+                                    파일을 선택해주세요
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Placeholder before data load -->
+                        <div id="inputReviewPlaceholder" class="placeholder-message" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+                            <p style="font-size: 1.1rem; margin-bottom: 10px;">⬆️ 위에서 시추주상도 데이터를 업로드해주세요</p>
+                            <p style="font-size: 0.9rem;">JSON 파일 업로드 시 지층별 통계 분석 및 토질정수 추천이 자동으로 수행됩니다.</p>
+                        </div>
+
+                        <!-- Main content (shown after data load) -->
+                        <div id="inputReviewContent" style="display: none;">
+
+                            <!-- Section 1: 지층별 토질정수 분석 -->
+                            <div class="review-section" style="margin-bottom: 30px;">
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--primary-steel);">
+                                    <h3 style="color: var(--primary-steel); margin: 0;">
+                                        <span style="margin-right: 8px;">🔬</span>1. 지층별 토질정수 분석
+                                    </h3>
+                                    <button type="button" onclick="showSoilParamHelpModal()"
+                                            style="cursor: pointer; color: var(--primary-steel); background: none; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 10px; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;"
+                                            title="토질정수 산출 근거 상세 설명">
+                                        <span style="font-size: 1rem;">?</span> 도움말
+                                    </button>
+                                </div>
+
+                                <div style="overflow-x: auto;">
+                                    <table class="data-table" id="soilParameterTable" style="width: 100%; font-size: 0.9rem;">
+                                        <thead>
+                                            <tr style="background-color: var(--primary-navy); color: white;">
+                                                <th style="width: 120px; padding: 12px 8px;">지층명</th>
+                                                <th style="width: 140px; padding: 12px 8px;">출현 시추공</th>
+                                                <th style="width: 100px; padding: 12px 8px;" title="클릭하여 상세 계산 보기">N값 범위<br><small style="color: #90caf9;">(클릭)</small></th>
+                                                <th style="width: 80px; padding: 12px 8px;" title="두께 기반 가중치 평균">N값 평균<br><small>(가중치)</small></th>
+                                                <th style="width: 100px; padding: 12px 8px;" title="비배수 전단강도 (점성토)&#10;Terzaghi: cu = 6.25×N">cu (kPa)</th>
+                                                <th style="width: 80px; padding: 12px 8px;" title="내부마찰각 (사질토)&#10;Dunham: φ = √(12N) + 15">φ (°)</th>
+                                                <th style="width: 90px; padding: 12px 8px;" title="단위중량&#10;N값 기반 경험식 적용">γ (kN/m³)</th>
+                                                <th style="width: 90px; padding: 12px 8px;" title="탄성계수&#10;사질토: E = 0.7×N (MPa)&#10;점성토: E = 0.35×N (MPa)">E (MPa)</th>
+                                                <th style="width: 80px; padding: 12px 8px;">토질분류</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="soilParameterTableBody">
+                                            <!-- Data will be populated dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary);">
+                                    <span style="color: var(--status-warning);">※</span> 추천값은 N값 기반 경험식으로 산정됩니다. 현장 조건에 맞게 조정하세요.
+                                    <span style="color: var(--primary-steel); margin-left: 15px;">입력칸 위에 마우스를 올리면 추천 근거를 확인할 수 있습니다.</span>
+                                </div>
+                            </div>
+
+                            <!-- Section 2: 말뚝 제원 및 시공 조건 설정 -->
+                            <div class="review-section" style="margin-bottom: 30px;">
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--primary-steel);">
+                                    <h3 style="color: var(--primary-steel); margin: 0;">
+                                        <span style="margin-right: 8px;">🔩</span>2. 말뚝 제원 및 시공 조건 설정
+                                    </h3>
+                                </div>
+
+                                <div class="pile-spec-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+                                    <!-- Pile Type Selection -->
+                                    <div class="spec-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">말뚝 종류 선택</h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 12px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">말뚝 타입</label>
+                                                <select id="reviewPileType" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" onchange="onReviewPileTypeChange()">
+                                                    <option value="phc" selected>PHC 말뚝</option>
+                                                    <option value="steel">강관 말뚝 (Steel Pipe)</option>
+                                                </select>
+                                            </div>
+                                            <!-- PHC Options -->
+                                            <div id="reviewPhcOptions">
+                                                <div style="margin-bottom: 8px;">
+                                                    <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">PHC 규격</label>
+                                                    <select id="reviewPhcSpec" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" onchange="updateReviewPileSpecs()">
+                                                        <option value="400-A">Ø400mm - A종 (1,120 kN)</option>
+                                                        <option value="450-A">Ø450mm - A종 (1,370 kN)</option>
+                                                        <option value="500-A">Ø500mm - A종 (1,730 kN)</option>
+                                                        <option value="500-B" selected>Ø500mm - B종 (1,780 kN)</option>
+                                                        <option value="600-A">Ø600mm - A종 (2,360 kN)</option>
+                                                        <option value="600-B">Ø600mm - B종 (2,430 kN)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <!-- Steel Options -->
+                                            <div id="reviewSteelOptions" style="display: none;">
+                                                <div style="margin-bottom: 8px;">
+                                                    <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">외경 (mm)</label>
+                                                    <select id="reviewSteelDia" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" onchange="updateReviewPileSpecs()">
+                                                        <option value="318.5">Ø318.5</option>
+                                                        <option value="355.6">Ø355.6</option>
+                                                        <option value="406.4">Ø406.4</option>
+                                                        <option value="457.2">Ø457.2</option>
+                                                        <option value="508.0" selected>Ø508.0</option>
+                                                        <option value="558.8">Ø558.8</option>
+                                                        <option value="609.6">Ø609.6</option>
+                                                        <option value="711.2">Ø711.2</option>
+                                                        <option value="812.8">Ø812.8</option>
+                                                    </select>
+                                                </div>
+                                                <div style="margin-bottom: 8px;">
+                                                    <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">두께 (mm)</label>
+                                                    <select id="reviewSteelThk" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" onchange="updateReviewPileSpecs()">
+                                                        <option value="9.3">9.3</option>
+                                                        <option value="10.3">10.3</option>
+                                                        <option value="12.7" selected>12.7</option>
+                                                        <option value="15.9">15.9</option>
+                                                        <option value="19.1">19.1</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">재질 등급</label>
+                                                    <select id="reviewSteelMat" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" onchange="updateReviewPileSpecs()">
+                                                        <option value="SKK400" selected>SKK400 (Fy=235 MPa)</option>
+                                                        <option value="SKK490">SKK490 (Fy=315 MPa)</option>
+                                                        <option value="SKK540">SKK540 (Fy=380 MPa)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pile Specifications Display -->
+                                    <div class="spec-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">현재 말뚝 제원</h4>
+                                        <table style="width: 100%; font-size: 0.85rem;">
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">직경/외경 (D)</td><td id="reviewPileDiameter" style="text-align: right; font-weight: 600;">500 mm</td></tr>
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">두께 (t)</td><td id="reviewPileThickness" style="text-align: right; font-weight: 600;">80 mm</td></tr>
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">순단면적 (Ap)</td><td id="reviewPileArea" style="text-align: right; font-weight: 600;">0.1056 m²</td></tr>
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">총단면적 (Ag)</td><td id="reviewPileGrossArea" style="text-align: right; font-weight: 600;">0.1963 m²</td></tr>
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">둘레 (U)</td><td id="reviewPilePerimeter" style="text-align: right; font-weight: 600;">1.571 m</td></tr>
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">탄성계수 (Ep)</td><td id="reviewPileEp" style="text-align: right; font-weight: 600;">39,200 MPa</td></tr>
+                                            <tr><td style="padding: 4px 0; color: var(--text-secondary);">구조적 허용지지력</td><td id="reviewPileStructural" style="text-align: right; font-weight: 600; color: var(--primary-steel);">1,780 kN</td></tr>
+                                        </table>
+                                    </div>
+
+                                    <!-- Construction Conditions -->
+                                    <div class="spec-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">시공 조건</h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">시공 방법</label>
+                                                <select id="reviewConstMethod" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <option value="bored" selected>매입말뚝 (Bored/SDA)</option>
+                                                    <option value="driven">항타말뚝 (Driven)</option>
+                                                    <option value="sip">SIP 공법</option>
+                                                </select>
+                                            </div>
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">지지층 선택</label>
+                                                <select id="reviewBearingLayer" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <option value="weathered_rock" selected>풍화암</option>
+                                                    <option value="weathered_residual">풍화잔류토 (N≥50)</option>
+                                                    <option value="soft_rock">연암</option>
+                                                    <option value="n50">N≥50 지층</option>
+                                                </select>
+                                            </div>
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">지지층 근입깊이 (m)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <input type="number" id="reviewPenetrationDepth" value="1.0" step="0.1" min="0.5" max="3.0" style="width: 80px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">구조물 기초 설계 기준: 풍화암/연암 1.0m 이상</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">이음 방법</label>
+                                                <select id="reviewSpliceMethod" class="form-select" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <option value="none" selected>이음 없음</option>
+                                                    <option value="welding">용접 이음 (5%/개소)</option>
+                                                    <option value="bolting">볼트 이음 (10%/개소)</option>
+                                                    <option value="filled">충전식 이음</option>
+                                                </select>
+                                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                                    ※ 말뚝 한 본당 길이 15m 기준 자동 산정
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Ground Level Settings -->
+                                    <div class="spec-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">계획고 설정</h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">계획고 (Target Ground EL.m)</label>
+                                                <input type="number" id="reviewTargetElevation" value="0" step="0.1" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                <div id="reviewGroundModStatus" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                                    원지반고와 비교하여 성토/절토 자동 판단
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">성토재 N값 (성토 시 적용)</label>
+                                                <input type="number" id="reviewFillN" value="8" min="1" max="30" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 2.5: 침하량 계산 계수 설정 (Vesic 3성분법) -->
+                            <div class="review-section" style="margin-bottom: 30px;">
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--primary-steel);">
+                                    <h3 style="color: var(--primary-steel); margin: 0;">
+                                        <span style="margin-right: 8px;">📉</span>2.5. 침하량 계산 계수 (Vesic 3성분 합산법)
+                                    </h3>
+                                    <span class="help-tooltip" style="cursor: help; color: var(--text-secondary);" title="구조물 기초 설계 기준 기준, 구조물기초설계기준 해설 p.8~9">
+                                        ❓ 도움말
+                                    </span>
+                                </div>
+
+                                <div class="formula-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                                    <!-- Settlement Formula Overview -->
+                                    <div class="formula-card" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">
+                                            침하량 산정식
+                                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 8px;">Vesic (1977)</span>
+                                        </h4>
+                                        <div style="font-size: 0.9rem; font-family: 'Courier New', monospace; background: white; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                                            <div style="font-weight: 600; color: var(--primary-navy);">St = Ss + Sp + Sps</div>
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+                                            <div><strong>Ss</strong>: 말뚝 탄성압축 = (Qps + αs×Qfs)×L / (Ap×Ep)</div>
+                                            <div><strong>Sp</strong>: 선단 하부 침하 = (Qps×Cp) / (B×qp)</div>
+                                            <div><strong>Sps</strong>: 주면마찰 침하 = (Qfs×Cs) / (Lp×qp)</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- αs Coefficient -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">
+                                            주면마찰력 분포계수 (αs)
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+                                                    <input type="radio" name="alphaS" value="0.5" style="margin-right: 8px;">
+                                                    <span>균등분포: αs = 0.5</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+                                                    <input type="radio" name="alphaS" value="0.67" checked style="margin-right: 8px;">
+                                                    <span>삼각형분포: αs = 0.67 <span style="color: var(--status-pass);">(권장)</span></span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                                    <input type="radio" name="alphaS" value="0.6" style="margin-right: 8px;">
+                                                    <span>포물선분포: αs = 0.6</span>
+                                                </label>
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                                ※ N값이 하부로 갈수록 증가하면 삼각형분포(0.67) 적용
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Cp Coefficient -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;" title="Vesic 경험계수: 시공법/지반조건에 따라 결정">
+                                            경험계수 (Cp)
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">Cp 값 (시공법/지반조건별)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <input type="number" id="reviewCp" value="0.12" step="0.01" min="0.02" max="0.20" style="width: 80px; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center; font-weight: 600;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">(범위: 0.02~0.18)</span>
+                                                </div>
+                                            </div>
+                                            <table style="width: 100%; font-size: 0.75rem; border-collapse: collapse; margin-top: 8px;">
+                                                <thead>
+                                                    <tr style="background: var(--primary-navy); color: white;">
+                                                        <th style="padding: 4px; border: 1px solid var(--border-color);">지반</th>
+                                                        <th style="padding: 4px; border: 1px solid var(--border-color);">타입</th>
+                                                        <th style="padding: 4px; border: 1px solid var(--border-color);">매입</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr><td style="padding: 3px; border: 1px solid var(--border-color);">모래</td><td style="padding: 3px; border: 1px solid var(--border-color); text-align: center;">0.02~0.04</td><td style="padding: 3px; border: 1px solid var(--border-color); text-align: center; background: #e8f5e9;">0.09~0.18</td></tr>
+                                                    <tr><td style="padding: 3px; border: 1px solid var(--border-color);">점토</td><td style="padding: 3px; border: 1px solid var(--border-color); text-align: center;">0.02~0.03</td><td style="padding: 3px; border: 1px solid var(--border-color); text-align: center;">0.03~0.06</td></tr>
+                                                    <tr><td style="padding: 3px; border: 1px solid var(--border-color);">실트</td><td style="padding: 3px; border: 1px solid var(--border-color); text-align: center;">0.03~0.05</td><td style="padding: 3px; border: 1px solid var(--border-color); text-align: center;">0.09~0.12</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Allowable Settlement -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">
+                                            허용 침하량 기준
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">허용 침하량 (mm)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <input type="number" id="reviewAllowableSettlement" value="25" step="5" min="10" max="50" style="width: 80px; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center; font-weight: 600;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">mm</span>
+                                                </div>
+                                            </div>
+                                            <table style="width: 100%; font-size: 0.75rem; margin-top: 8px;">
+                                                <tr><td style="padding: 3px; color: var(--text-secondary);">교량 기초</td><td style="text-align: right; font-weight: 600;">≤ 25 mm</td></tr>
+                                                <tr><td style="padding: 3px; color: var(--text-secondary);">일반 건축물</td><td style="text-align: right; font-weight: 600;">≤ 50 mm</td></tr>
+                                                <tr><td style="padding: 3px; color: var(--text-secondary);">민감 구조물</td><td style="text-align: right; font-weight: 600;">≤ 15 mm</td></tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 3: 지지력 공식 계수 설정 -->
+                            <div class="review-section" style="margin-bottom: 30px;">
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--primary-steel);">
+                                    <h3 style="color: var(--primary-steel); margin: 0;">
+                                        <span style="margin-right: 8px;">📐</span>3. 지지력 공식 계수 설정
+                                    </h3>
+                                </div>
+
+                                <div class="formula-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+                                    <!-- Skin Friction Parameters (구조물기초설계기준해설) -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;" title="구조물기초설계기준해설 p.302">
+                                            주면마찰력 계수
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 12px; padding: 8px; background: #e3f2fd; border-radius: 4px;">
+                                                <div style="font-size: 0.8rem; color: var(--primary-navy); font-weight: 600; margin-bottom: 4px;">적용 공식 (구조물기초설계기준해설)</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                                    사질토: Qs = βs × Ns × As<br>
+                                                    점성토: Qs = βc × Nc × Ac
+                                                </div>
+                                            </div>
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">사질토 주면마찰 계수 (βs)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">βs =</span>
+                                                    <input type="number" id="betaSand" value="2.0" step="0.1" min="1.0" max="5.0" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">kN/m² (기준: 2.0)</span>
+                                                </div>
+                                            </div>
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">점성토 주면마찰 계수 (βc)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">βc =</span>
+                                                    <input type="number" id="betaClay" value="6.25" step="0.25" min="3.0" max="10.0" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">kN/m² (기준: 6.25)</span>
+                                                </div>
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                                                ※ Ns, Nc: 각 토층의 평균 N값<br>
+                                                ※ As, Ac: 각 토층의 주면적 (U × L)
+                                            </div>
+                                        </div>
+                                        <!-- Hidden inputs for backward compatibility -->
+                                        <input type="hidden" id="alphaLow" value="1.0">
+                                        <input type="hidden" id="alphaHigh" value="0.5">
+                                        <input type="hidden" id="fsMaxClay" value="150">
+                                        <input type="hidden" id="fsMaxSand" value="200">
+                                    </div>
+
+                                    <!-- End Bearing Parameters (구조물기초설계기준해설) -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;" title="구조물기초설계기준해설 p.302">
+                                            선단지지력 계수
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 12px; padding: 8px; background: #e3f2fd; border-radius: 4px;">
+                                                <div style="font-size: 0.8rem; color: var(--primary-navy); font-weight: 600; margin-bottom: 4px;">적용 공식 (구조물기초설계기준해설)</div>
+                                                <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                                    Qp = α × N × Ap (선단지지력)<br>
+                                                    N = (N1 + N2) / 2 ≤ 50
+                                                </div>
+                                            </div>
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">선단지지력 계수 (α)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">α =</span>
+                                                    <input type="number" id="endBearingAlpha" value="250" step="10" min="100" max="500" style="width: 70px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">kN/m² (기준: 250)</span>
+                                                </div>
+                                            </div>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                                                ※ N1: 선단 N치<br>
+                                                ※ N2: 선단 위 4D 범위 평균 N치<br>
+                                                ※ N > 50인 경우 N = 50 적용
+                                            </div>
+                                        </div>
+                                        <!-- Hidden input for qpMax (backward compatibility) -->
+                                        <input type="hidden" id="qpMax" value="15000">
+                                    </div>
+
+                                    <!-- Construction Method Factors -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;" title="타입:1.0, 매입:0.7 (구조물 기초 설계 기준)">
+                                            시공방법 보정계수
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">타입 말뚝 (Driven)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">보정계수 =</span>
+                                                    <input type="number" id="factorDriven" value="1.0" step="0.05" min="0.5" max="1.5" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">매입 말뚝 (Bored/SDA)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">보정계수 =</span>
+                                                    <input type="number" id="factorBored" value="0.7" step="0.05" min="0.3" max="1.0" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Safety Factors -->
+                                    <div class="formula-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;" title="구조물 기초 설계 기준 기준 안전율">
+                                            안전율 설정
+                                        </h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">압축 안전율 (FSc)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <input type="number" id="reviewSfCompression" value="3.0" step="0.1" min="2.0" max="5.0" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">(KDS 기준: 3.0)</span>
+                                                </div>
+                                            </div>
+                                            <div style="margin-bottom: 10px;">
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">인발 안전율 (FSp)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <input type="number" id="reviewSfPullout" value="3.0" step="0.1" min="2.5" max="5.0" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">(KDS 기준: 3.0)</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style="display: block; color: var(--text-secondary); margin-bottom: 4px;">수평 안전율 (FSh)</label>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <input type="number" id="reviewSfLateral" value="2.0" step="0.1" min="1.5" max="4.0" style="width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                    <span style="font-size: 0.8rem; color: var(--text-muted);">(일반: 1.5~2.5)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 4: 내부마찰각 추정식 선택 -->
+                            <div class="review-section" style="margin-bottom: 30px;">
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--primary-steel);">
+                                    <h3 style="color: var(--primary-steel); margin: 0;">
+                                        <span style="margin-right: 8px;">📊</span>4. 내부마찰각 추정식 선택
+                                    </h3>
+                                </div>
+
+                                <div class="estimation-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                                    <!-- phi Estimation Method -->
+                                    <div class="estimation-card" style="background: var(--bg-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                        <h4 style="color: var(--primary-navy); margin-bottom: 12px; font-size: 0.95rem;">내부마찰각 (φ) 추정식</h4>
+                                        <div style="font-size: 0.85rem;">
+                                            <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                                                <input type="radio" name="phiEstimation" value="dunham" checked style="margin-right: 8px;">
+                                                <span>Dunham: φ = √(12N) + 15 (°)</span>
+                                            </label>
+                                            <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                                                <input type="radio" name="phiEstimation" value="peck" style="margin-right: 8px;">
+                                                <span>Peck: φ = 28 + 0.4N (°), max 40°</span>
+                                            </label>
+                                            <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                                                <input type="radio" name="phiEstimation" value="jra" style="margin-right: 8px;">
+                                                <span>일본도로협회: φ = √(20N) + 15 (°)</span>
+                                            </label>
+                                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                                <input type="radio" name="phiEstimation" value="custom_phi" style="margin-right: 8px;">
+                                                <span>사용자 정의: φ = </span>
+                                                <input type="number" id="phiCustomBase" value="28" step="1" min="20" max="40" style="width: 50px; padding: 2px 4px; margin: 0 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                <span> + </span>
+                                                <input type="number" id="phiCustomCoeff" value="0.4" step="0.1" min="0.1" max="1.0" style="width: 50px; padding: 2px 4px; margin: 0 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                                <span>N</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Apply Button -->
+                            <div class="action-section" style="text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(30, 58, 95, 0.05), rgba(70, 130, 180, 0.05)); border-radius: 8px; margin-top: 20px;">
+                                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
+                                    위 설정을 확인 후 "설정 적용 및 계산 실행" 버튼을 클릭하세요.<br>
+                                    모든 시추공에 대해 일괄적으로 설정이 적용됩니다.
+                                </p>
+                                <button id="applySettingsBtn" class="btn btn-primary" style="padding: 12px 40px; font-size: 1rem; font-weight: 600;" onclick="applyInputReviewSettings()">
+                                    ⚡ 설정 적용 및 계산 실행
+                                </button>
+                                <button class="btn btn-secondary" style="padding: 12px 30px; font-size: 1rem; margin-left: 10px;" onclick="resetInputReviewSettings()">
+                                    🔄 기본값 복원
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overview Tab - Enhanced Table -->
+                <div class="tab-panel" id="tab-overview">
+                    <div class="summary-table-container">
+                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">시추공별 말뚝 기초 종합 검토 결과</h2>
+                        <table class="data-table" id="summaryTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">시추공<br>번호</th>
+                                    <th style="width: 70px;">지표고<br>(EL.m)</th>
+                                    <th style="width: 90px;">계획고<br>(EL.m)</th>
+                                    <th style="width: 70px;">지하수위<br>(EL.m)</th>
+                                    <th style="width: 80px;">말뚝길이<br>(m)</th>
+                                    <th style="width: 100px;">선단지지고<br>(EL.m) <span style="font-size: 0.7rem; color: #90caf9; font-weight: normal;">✏️편집가능</span></th>
+                                    <th style="width: 90px;">허용지지력<br>(kN)</th>
+                                    <th style="width: 70px;">총침하<br>(mm)</th>
+                                    <th style="width: 90px;">수평지지력<br>(kN)</th>
+                                    <th style="width: 90px;">인발저항력<br>(kN)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="summaryTableBody">
+                                <!-- Data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Summary Statistics Cards -->
+                    <div class="info-cards">
+                        <div class="info-card">
+                            <div class="info-card-label">평균 말뚝 길이</div>
+                            <div class="info-card-value">
+                                <span id="avgPileLength">-</span>
+                                <span class="info-card-unit">m</span>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-label">평균 허용지지력</div>
+                            <div class="info-card-value">
+                                <span id="avgCapacity">-</span>
+                                <span class="info-card-unit">kN</span>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-label">최소 허용지지력</div>
+                            <div class="info-card-value">
+                                <span id="minCapacity">-</span>
+                                <span class="info-card-unit">kN</span>
+                            </div>
+                            <div class="info-card-note" id="minCapacityBorehole" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">
+                                -
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-label">최대 침하량</div>
+                            <div class="info-card-value">
+                                <span id="maxSettlement">-</span>
+                                <span class="info-card-unit">mm</span>
+                            </div>
+                            <div class="info-card-note" id="maxSettlementBorehole" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">
+                                -
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-label">최소 수평지지력</div>
+                            <div class="info-card-value">
+                                <span id="minHorizontal">-</span>
+                                <span class="info-card-unit">kN</span>
+                            </div>
+                            <div class="info-card-note" id="minHorizontalBorehole" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">
+                                -
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Borehole Visualization Tab -->
+                <div class="tab-panel" id="tab-borehole">
+                    <div class="canvas-container">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0; color: var(--primary-navy);">시추주상도 시각화</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <button id="btn3DView" class="btn btn-secondary" onclick="open3DVisualization()" style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 1.2rem;">🌐</span> 3D 지질 시각화
+                                </button>
+                                <button class="btn btn-secondary" onclick="exportBoreholeImage()" style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 1.1rem;">📷</span> 이미지 저장
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="max-width: 300px; margin-bottom: 20px;">
+                            <label class="form-label">시추공 선택</label>
+                            <select id="boreholeSelect" class="form-select" onchange="drawBoreholeSVG()">
+                                <option value="">-- 시추공을 선택하세요 --</option>
+                            </select>
+                        </div>
+                        <!-- SVG 기반 시각화 (벡터, 텍스트 선택 가능) -->
+                        <div id="boreholeSVGContainer" style="width: 100%; overflow-x: auto; background: #fff; border: 1px solid #dee2e6; border-radius: 8px; min-height: 700px;">
+                            <svg id="boreholeSVG" width="1400" height="800" style="font-family: 'Pretendard', 'Noto Sans KR', sans-serif;"></svg>
+                        </div>
+                        <!-- 레거시 Canvas (숨김) -->
+                        <canvas id="boreholeCanvas" width="1000" height="600" style="display: none;"></canvas>
+                    </div>
+                </div>
+
+                <!-- 3D 지질 시각화 모달 (Plotly.js 기반 전문가용 뷰어) -->
+                <div id="modal3DView" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f5f5f5; z-index: 10000;">
+                    <!-- 상단 헤더 바 -->
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 56px; background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10001; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;">🌐</div>
+                            <div>
+                                <div style="color: white; font-weight: 700; font-size: 15px;">3D 지질모델 뷰어</div>
+                                <div style="color: rgba(255,255,255,0.7); font-size: 10px;">Plotly.js Geotechnical Visualization</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <!-- 지층 레이어 토글 -->
+                            <span style="color: rgba(255,255,255,0.6); font-size: 10px; margin-right: 4px;">지층:</span>
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(139,115,85,0.3); padding: 3px 8px; border-radius: 4px;">
+                                <input type="checkbox" id="chk3DSurface" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                지표
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(205,133,63,0.3); padding: 3px 8px; border-radius: 4px;">
+                                <input type="checkbox" id="chk3DWeathered" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                풍화암
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(112,128,144,0.3); padding: 3px 8px; border-radius: 4px;">
+                                <input type="checkbox" id="chk3DSoftRock" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                연암
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(33,150,243,0.3); padding: 3px 8px; border-radius: 4px;">
+                                <input type="checkbox" id="chk3DGWL" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                지하수위
+                            </label>
+                            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 6px;"></div>
+                            <!-- 요소 토글 -->
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer;">
+                                <input type="checkbox" id="chk3DBoreholes" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                시추공
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer;">
+                                <input type="checkbox" id="chk3DPiles" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                말뚝
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer;">
+                                <input type="checkbox" id="chk3DContours" onchange="update3DPlotly()" style="width: 12px; height: 12px;">
+                                등고선
+                            </label>
+                            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 6px;"></div>
+                            <button onclick="clear3DBoreholeSelection()" style="padding: 4px 10px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; cursor: pointer; font-size: 10px;">전체 보기</button>
+                            <button onclick="reset3DPlotlyView()" style="padding: 4px 10px; background: rgba(255,193,7,0.2); color: #ffc107; border: 1px solid rgba(255,193,7,0.5); border-radius: 4px; cursor: pointer; font-size: 10px;">⟲ 리셋</button>
+                            <button onclick="close3DVisualization()" style="padding: 4px 12px; background: linear-gradient(135deg, #c62828 0%, #e53935 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 11px;">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- Plotly 3D 플롯 컨테이너 -->
+                    <div id="3dPlotlyContainer" style="position: absolute; top: 56px; left: 0; right: 300px; bottom: 0; background: white;"></div>
+
+                    <!-- 우측 정보 패널 -->
+                    <div id="3dSidePanel" style="position: absolute; top: 56px; right: 0; width: 300px; bottom: 0; background: #ffffff; border-left: 1px solid #e0e0e0; overflow-y: auto;">
+                        <!-- 프로젝트 정보 -->
+                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
+                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">📋 프로젝트 정보</div>
+                            <div id="3dProjectInfo" style="color: #333; font-size: 12px; line-height: 1.7;"></div>
+                        </div>
+
+                        <!-- 지층 범례 -->
+                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
+                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">🗺️ 지층 범례</div>
+                            <div id="3dLegendItems" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                        </div>
+
+                        <!-- 설계 요약 -->
+                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
+                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">📊 설계 요약</div>
+                            <div id="3dDesignSummary" style="color: #333; font-size: 12px; line-height: 1.7;"></div>
+                        </div>
+
+                        <!-- 시추공 선택 (클릭으로 단면 보기) -->
+                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
+                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">🎯 시추공 선택 <span style="font-weight: 400; font-size: 9px; color: #666;">(클릭시 단면 보기)</span></div>
+                            <div id="3dBoreholeList" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto;"></div>
+                        </div>
+
+                        <!-- 선택된 시추공 상세 정보 -->
+                        <div id="3dSelectedBoreholeInfo" style="padding: 16px; border-bottom: 1px solid #e0e0e0; display: none;">
+                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">📍 선택 시추공 정보</div>
+                            <div id="3dSelectedBoreholeDetail" style="color: #333; font-size: 11px; line-height: 1.8;"></div>
+                        </div>
+
+                        <!-- 조작 안내 -->
+                        <div style="padding: 16px; background: #f9f9f9;">
+                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">🖱️ 조작 안내</div>
+                            <div style="color: #666; font-size: 10px; line-height: 1.6;">
+                                • 드래그: 회전 | 우클릭: 이동<br>
+                                • 스크롤: 확대/축소<br>
+                                • <b>시추공 클릭: 반경 5m 단면</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Calculations Tab -->
+                <div class="tab-panel" id="tab-calculations">
+                    <div class="calculation-container">
+                        <h2 style="margin-bottom: 25px; color: var(--primary-navy);">상세 계산 과정 (시추공: <span id="calcBorehole">NBH-1</span>)</h2>
+
+                        <!-- 기준 표시 -->
+                        <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px;">
+                            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 8px;">📐 적용 기준</div>
+                            <div style="font-size: 0.95rem; line-height: 1.6;">
+                                • <strong>구조물기초설계기준</strong> (말뚝기초)<br>
+                                • 도로교설계기준 (수평지반반력계수)
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="max-width: 300px; margin-bottom: 30px;">
+                            <label class="form-label">계산 시추공 선택</label>
+                            <select id="calcBoreholeSelect" class="form-select" onchange="updateCalculations()">
+                                <!-- Options will be populated -->
+                            </select>
+                        </div>
+
+                        <!-- 1. Pile Length Determination -->
+                        <div class="calc-section">
+                            <div class="calc-title">Step 1. 말뚝 길이 결정</div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">1-1</div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
+                                    <strong>변수 정의:</strong><br>
+                                    • $EL_{start}$ : 말뚝 두부 표고 (작업면 표고)<br>
+                                    • $EL_{tip}$ : 말뚝 선단 표고 (지지층 근입 후)<br>
+                                    • $L_{pile}$ : 말뚝 전체 길이 (m)
+                                </div>
+                                <div class="calc-formula">
+                                    $$L_{pile} = EL_{start} - EL_{tip}$$
+                                </div>
+                                <div class="calc-substitution" id="lengthCalc1">
+                                    작업면 표고: $EL_{start} = 133.4$ m
+                                </div>
+                                <div class="calc-substitution" id="lengthCalc2">
+                                    지지층 상단: $EL_{bearing} = 119.9$ m (풍화암층)
+                                </div>
+                                <div class="calc-substitution" id="lengthCalc3">
+                                    근입 깊이: $P_{penetration} = 1.0$ m (구조물 기초 설계 기준 규정)
+                                </div>
+                                <div class="calc-result" id="lengthResult">
+                                    $L_{pile} = 133.4 - 119.9 + 1.0 = 14.5$ m
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Vertical Bearing Capacity -->
+                        <div class="calc-section">
+                            <div class="calc-title">Step 2. 연직 지지력 계산 (구조물기초설계기준해설)</div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">2-1</div>
+                                <div style="background: #e8f5e9; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #4caf50;">
+                                    <strong>적용 공식 (구조물기초설계기준해설 p.302):</strong>
+                                    <div style="margin-top: 10px; font-size: 0.95rem;">
+                                        $Q_u = 250 \times N \times A_p + 2 \times N_s \times A_s + 6.25 \times N_c \times A_c$
+                                    </div>
+                                    <div style="margin-top: 8px; font-size: 0.85rem; color: #555;">
+                                        • 선단지지력: $Q_p = 250 \times N \times A_p$ (N = (N1+N2)/2 ≤ 50)<br>
+                                        • 사질토 주면마찰력: $Q_s = 2.0 \times N_s \times A_s$<br>
+                                        • 점성토 주면마찰력: $Q_c = 6.25 \times N_c \times A_c$
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">2-2</div>
+                                <div class="calc-formula">
+                                    주면마찰력 계산 (지층별):
+                                </div>
+                                <div id="skinFrictionDetails">
+                                    <!-- Dynamic content will be inserted here -->
+                                </div>
+
+                                <!-- 지층별 상세 계산 테이블 (사질토/점성토 구분) -->
+                                <div style="margin-top: 20px; overflow-x: auto;">
+                                    <div id="soilTypeLegend" style="margin-bottom: 10px; font-size: 0.85rem;">
+                                        <span style="display: inline-block; width: 12px; height: 12px; background: #fff3e0; border: 1px solid #ddd; margin-right: 4px;"></span>
+                                        <span style="color: #ef6c00; margin-right: 15px;">사질토 (βs=<span id="legendBetaSand">2.0</span>)</span>
+                                        <span style="display: inline-block; width: 12px; height: 12px; background: #e3f2fd; border: 1px solid #ddd; margin-right: 4px;"></span>
+                                        <span style="color: #1976d2;">점성토 (βc=<span id="legendBetaClay">6.25</span>)</span>
+                                    </div>
+                                    <table class="data-table" id="skinFrictionDetailTable" style="font-size: 0.85rem; width: 100%;">
+                                        <thead>
+                                            <tr>
+                                                <th>토층명</th>
+                                                <th>깊이<br>(EL, m)</th>
+                                                <th>토질분류</th>
+                                                <th>말뚝길이<br>(m)</th>
+                                                <th>N값</th>
+                                                <th>β<br>(kPa)</th>
+                                                <th>$f_s$<br>(kPa)</th>
+                                                <th>$A_s$<br>(m²)</th>
+                                                <th>$Q_s$<br>(kN)</th>
+                                                <th>누적<br>(kN)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="skinFrictionDetailTableBody">
+                                            <!-- Dynamic rows will be inserted here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="calc-result" id="skinFrictionTotal" style="margin-top: 15px;">
+                                    총 주면마찰력: $Q_s = 485.3$ kN
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">2-3</div>
+                                <div style="background: #fff3e0; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #ff9800;">
+                                    <strong>선단지지력 산정 공식 (구조물 기초 설계 기준):</strong><br>
+                                    <div style="margin-top: 8px;">
+                                        $q_p = C_{end} \times N_{tip}$ (kPa)<br>
+                                        • 타입말뚝 (폐합): $C_{end} = 300$, 상한 15,000 kPa<br>
+                                        • 매입말뚝: $C_{end} = 200$, 상한 12,000 kPa<br>
+                                        • $N_{tip}$: 선단부 상부 1D ~ 하부 4D 평균 N값 (최대 60)
+                                    </div>
+                                </div>
+                                <div class="calc-formula" id="endBearingFormula">
+                                    선단지지력 계산:
+                                    $$q_p = C_{end} \times N_{tip}$$
+                                </div>
+                                <div class="calc-substitution" id="endBearingCalc">
+                                    지지층 N값: $N_{tip} = 50$ (풍화암)
+                                </div>
+                                <div class="calc-substitution" id="endBearingCalc2">
+                                    선단 단면적: $A_p = \frac{\pi \times D^2}{4} = \frac{\pi \times (0.5)^2}{4} = 0.196$ m²
+                                </div>
+                                <div class="calc-intermediate" id="endBearingCalc3">
+                                    $q_p = 300 \times 50 = 15,000$ kPa → 상한값 15,000 kPa 적용
+                                </div>
+                                <div class="calc-result" id="endBearingResult">
+                                    $Q_p = q_p \times A_p = 15,000 \times 0.196 = 2,940$ kN
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">2-4</div>
+                                <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #2196f3;">
+                                    <strong>허용지지력 결정:</strong><br>
+                                    $$Q_a = \min\left(\frac{Q_u}{FS_v}, Q_{a,material}\right)$$
+                                    <div style="margin-top: 5px; font-size: 0.9rem; color: #555;">
+                                        지반 허용지지력과 재료 허용지지력 중 작은 값 적용
+                                    </div>
+                                </div>
+                                <div class="calc-substitution" id="ultimateCalc">
+                                    극한지지력: $Q_u = Q_s + Q_p = 485.3 + 2,940 = 3,425.3$ kN
+                                </div>
+                                <div class="calc-substitution" id="allowableCalc">
+                                    지반 허용지지력: $Q_{a,soil} = \frac{Q_u}{FS_v} = \frac{3,425.3}{3.0} = 1,141.8$ kN
+                                </div>
+                                <div class="calc-substitution" id="materialCalc">
+                                    재료 허용지지력: $Q_{a,material} = 1,780$ kN (PHC 500-B)
+                                </div>
+                                <div class="calc-substitution" id="spliceCalc" style="margin-top: 15px; padding: 12px; background: rgba(30, 58, 95, 0.05); border-left: 3px solid var(--primary-navy);">
+                                    <strong>이음 방법 적용:</strong>
+                                    <div id="spliceCalcDetail" style="margin-top: 8px; font-size: 0.95rem;">
+                                        이음 없음: $Q_{a,material} = 1,780$ kN (감소 없음)
+                                    </div>
+                                </div>
+                                <div class="calc-result" id="finalCapacity">
+                                    최종 허용지지력: $Q_a = \min(1,141.8, 1,780) = 1,141.8$ kN
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Settlement Analysis -->
+                        <div class="calc-section">
+                            <div class="calc-title">Step 3. 침하량 분석 (3성분 합산법)</div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">3-1</div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
+                                    <strong>3성분 합산법 (Vesic 방법):</strong><br>
+                                    • $S_s$ : 말뚝 자체 탄성압축 (mm)<br>
+                                    • $S_p$ : 선단 하부 지반 침하 (mm)<br>
+                                    • $S_{ps}$ : 주면마찰력에 의한 침하 (mm)<br>
+                                    • $S_c$ : 압밀침하 (mm) - 암반지지시 무시
+                                </div>
+                                <div class="calc-formula">
+                                    총 침하량:
+                                    $$S_{total} = S_s + S_p + S_{ps} + S_c$$
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">3-2</div>
+                                <div style="background: #e8f5e9; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #4caf50;">
+                                    <strong>말뚝 탄성압축 ($S_s$) 공식:</strong><br>
+                                    $$S_s = \frac{(Q_{ps} + \alpha_s \cdot Q_{fs}) \times L}{A_p \times E_p}$$<br>
+                                    <div style="margin-top: 5px; font-size: 0.9rem;">
+                                        • $Q_{ps}$ = 선단 전달 하중 (kN)<br>
+                                        • $Q_{fs}$ = 주면 전달 하중 (kN)<br>
+                                        • $\alpha_s$ = 0.67 (삼각형 분포 가정)<br>
+                                        • $A_p$ = 말뚝 단면적 (m²)<br>
+                                        • $E_p$ = 말뚝 탄성계수 (kPa)
+                                    </div>
+                                    <div style="margin-top: 8px; padding: 8px; background: #f0f4f8; border-radius: 4px; font-size: 0.85rem;">
+                                        <strong>📋 탄성계수 기준 (구조물 기초 설계기준 해설 표 5.3.10)</strong><br>
+                                        • PC/PHC 말뚝: $E_p = 3.92 \times 10^7$ kN/m² = 39,200 MPa<br>
+                                        • 강관말뚝: $E_p = 2.00 \times 10^8$ kN/m² = 200,000 MPa<br>
+                                        • 현장타설 콘크리트: $E_p = 2.45 \times 10^7$ kN/m² = 24,500 MPa
+                                    </div>
+                                </div>
+                                <div class="calc-substitution" id="elasticCalc1">
+                                    허용지지력: $Q_a = 800$ kN
+                                </div>
+                                <div class="calc-substitution" id="elasticCalc1a" style="display: none;">
+                                    선단/주면 분담비: $Q_{ps}$ : $Q_{fs}$ = 기반 산정
+                                </div>
+                                <div class="calc-substitution" id="elasticCalc2">
+                                    말뚝 길이: $L = 14.5$ m
+                                </div>
+                                <div class="calc-substitution" id="elasticCalc3">
+                                    단면적: $A_p = 0.1056$ m² (PHC 500mm)
+                                </div>
+                                <div class="calc-substitution" id="elasticCalc4">
+                                    탄성계수: $E_p = 39,200$ MPa (PHC 말뚝, 표 5.3.10)
+                                </div>
+                                <div class="calc-intermediate" id="elasticCalc5">
+                                    $S_s = \frac{(Q_{ps} + 0.67 \times Q_{fs}) \times L}{A_p \times E_p} = 2.8$ mm
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">3-3</div>
+                                <div style="background: #fff3e0; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #ff9800;">
+                                    <strong>선단 하부 지반 침하 ($S_p$) 공식:</strong><br>
+                                    $$S_p = \frac{C_p \times Q_{ps}}{D \times q_p}$$<br>
+                                    <div style="margin-top: 5px; font-size: 0.9rem;">
+                                        • $C_p$ = 경험계수 (매입말뚝-사질토: 0.12 권장)<br>
+                                        • $D$ = 말뚝 직경 (m)<br>
+                                        • $q_p$ = 극한 선단지지력도 (kPa)
+                                    </div>
+                                </div>
+                                <div class="calc-substitution" id="tipCalc1">
+                                    선단 전달 하중: $Q_{ps} = Q_a \times (Q_p/Q_u)$ kN
+                                </div>
+                                <div class="calc-substitution" id="tipCalc2">
+                                    경험계수: $C_p = 0.12$ (매입말뚝, 사질토 권장값)
+                                </div>
+                                <div class="calc-substitution" id="tipCalc3">
+                                    말뚝 직경: $D = 0.5$ m
+                                </div>
+                                <div class="calc-intermediate" id="tipCalc4">
+                                    $S_p = \frac{C_p \times Q_{ps}}{D \times q_p} \times 1000 = $ mm
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">3-4</div>
+                                <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #2196f3;">
+                                    <strong>주면마찰력에 의한 침하 ($S_{ps}$) - Vesic 변형식:</strong><br>
+                                    $$S_{ps} = \frac{Q_{fs} \times C_s}{L \times q_p}$$<br>
+                                    $$C_s = \left(0.93 + 0.16\sqrt{\frac{L}{D}}\right) \times C_p$$
+                                </div>
+                                <div class="calc-substitution" id="shaftSettleCalc1">
+                                    주면 전달 하중: $Q_{fs} = Q_a \times (Q_s/Q_u)$ kN
+                                </div>
+                                <div class="calc-substitution" id="shaftSettleCalc2">
+                                    $C_s = (0.93 + 0.16\sqrt{L/D}) \times C_p$
+                                </div>
+                                <div class="calc-intermediate" id="shaftSettleCalc3">
+                                    $S_{ps} = \frac{Q_{fs} \times C_s}{L \times q_p} \times 1000 = $ mm
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">3-5</div>
+                                <div class="calc-result" id="settlementTotal">
+                                    <strong>총 침하량 산정:</strong><br>
+                                    $S_{total} = S_s + S_p + S_{ps} + S_c$<br>
+                                    $S_{total} = 2.8 + 10.5 + 3.4 + 0 = 16.7$ mm<br><br>
+                                    <span style="font-size: 1.1rem;">
+                                        총 침하량 16.7 mm ≤ 허용침하량 25 mm ∴
+                                        <span style="color: var(--status-pass); font-weight: 600;">적합 (PASS)</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Lateral Bearing Capacity -->
+                        <div class="calc-section">
+                            <div class="calc-title">Step 4. 수평 지지력 계산 (도로교설계기준)</div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">4-1</div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
+                                    <strong>수평지반반력계수 ($k_h$) 산정:</strong><br>
+                                    • 점성토 (후쿠오카식): $k_h = 6,910 \times N^{0.406}$ (kN/m³)<br>
+                                    • 사질토 (요코야마식): $k_h = 2,000 \times N$ (kN/m³)<br>
+                                    • 상부 5m 구간 평균 N값 기반<br>
+                                    • 최소값: $k_{h,min} = 10,000$ kN/m³
+                                </div>
+                                <div class="calc-substitution" id="lateralCalc1">
+                                    지반반력계수: $k_h = 30,000$ kN/m³ (지반 조건 기반 산정)
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">4-2</div>
+                                <div style="background: #e8f5e9; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #4caf50;">
+                                    <strong>Chang's Method (변위 기준):</strong><br>
+                                    <div style="margin-top: 5px;">
+                                        특성계수: $\beta = \sqrt[4]{\frac{k_h \times D}{4 \times E \times I}}$ (m⁻¹)<br>
+                                        장말뚝 판정: $\beta L > 2.5$ (장말뚝), $\beta L \leq 2.5$ (단말뚝)<br>
+                                        허용 수평지지력: $H_{a,Chang} = \frac{2\sqrt{EI \cdot k_h \cdot D} \cdot Y}{FS_h}$ (kN)
+                                    </div>
+                                </div>
+                                <div class="calc-substitution" id="lateralCalc2">
+                                    단면2차모멘트: $I = \frac{\pi}{64}(D^4 - d^4)$ m⁴, 휨강성: $EI$ kN·m²
+                                </div>
+                                <div class="calc-intermediate" id="lateralCalc3">
+                                    $\beta = \sqrt[4]{\frac{k_h \times D}{4 \times EI}} = $ m⁻¹
+                                </div>
+                                <div class="calc-substitution" id="lateralCalc4">
+                                    $\beta L = \beta \times L > 2.5$ ∴ 장말뚝
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">4-3</div>
+                                <div style="background: #fff3e0; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #ff9800;">
+                                    <strong>Broms' Method (파괴 기준):</strong><br>
+                                    <div style="margin-top: 5px;">
+                                        항복모멘트: $M_y = Z_p \times \sigma_y$ (kN·m)<br>
+                                        $\quad Z_p = \frac{4}{3}(R^3 - r^3)$ - 플라스틱 단면계수<br>
+                                        극한지지력 (장말뚝, 사질토):<br>
+                                        $\quad H_u = \frac{9 M_y}{\gamma \times D^3 \times K_p}$ (kN)<br>
+                                        허용 수평지지력: $H_{a,Broms} = \frac{H_u}{FS_h}$ (kN)
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">4-4</div>
+                                <div class="calc-result" id="lateralResult">
+                                    <strong style="color: var(--primary-navy);">[최종 결과]</strong><br>
+                                    $H_a = \min(H_{a,Chang}, H_{a,Broms})$ (변위기준과 파괴기준 중 작은 값)
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 5: Uplift Resistance Calculation -->
+                        <div class="calc-section">
+                            <div class="calc-title">Step 5. 인발 저항력 계산 (구조물 기초 설계 기준)</div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">5-1</div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #555;">
+                                    <strong>인발 저항력 기본 공식:</strong><br>
+                                    $$Q_{pull} = \frac{Q_u}{FS_p} + W_p$$<br>
+                                    <div style="margin-top: 8px;">
+                                        • $Q_u$ = 극한 인발저항력 (kN) = $Q_s \times 0.8$ (저감계수 적용)<br>
+                                        • $FS_p$ = 인발 안전율 (3.0)<br>
+                                        • $W_p$ = 유효 자중 (kN) - 부력 고려
+                                    </div>
+                                    <div style="margin-top: 8px; color: #666;">
+                                        ※ 인발 시 선단지지력 기여 없음, 주면마찰력은 압축의 80% 적용
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">5-2</div>
+                                <div style="background: #e8f5e9; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #4caf50;">
+                                    <strong>구간 길이 산정 (부력 계산용):</strong><br>
+                                    • $l_1$ = 공기중 말뚝 길이 (지하수위 상부)<br>
+                                    • $l_2$ = 수중 말뚝 길이 (지하수위 하부)
+                                </div>
+                                <div class="calc-substitution" id="upliftCalc1">
+                                    지하수위: $EL_{GWL} = $ - m
+                                </div>
+                                <div class="calc-substitution" id="upliftCalc2">
+                                    공기중 길이: $l_1 = L - l_2 = $ - m
+                                </div>
+                                <div class="calc-substitution" id="upliftCalc3">
+                                    수중 길이: $l_2 = EL_{GWL} - EL_{tip} = $ - m
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">5-3</div>
+                                <div style="background: #fff3e0; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #ff9800;">
+                                    <strong>유효 자중 ($W_p$) 산정:</strong><br>
+                                    $$W_p = W_{total} - B$$
+                                    $$W_{total} = w_{pile} \times L$$
+                                    $$B = A_p \times l_2 \times \gamma_w$$
+                                </div>
+                                <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.85rem;">
+                                    <strong>기호 설명:</strong>
+                                    <table style="width: 100%; margin-top: 8px; border-collapse: collapse;">
+                                        <tr>
+                                            <td style="padding: 3px 10px; width: 120px;">$W_p$</td>
+                                            <td style="padding: 3px 0;">유효 자중 (kN)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$W_{total}$</td>
+                                            <td style="padding: 3px 0;">전체 자중 (kN)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$w_{pile}$</td>
+                                            <td style="padding: 3px 0;">말뚝 단위중량 (kN/m)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$L$</td>
+                                            <td style="padding: 3px 0;">말뚝 길이 (m)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$B$</td>
+                                            <td style="padding: 3px 0;">부력 (kN)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$A_p$</td>
+                                            <td style="padding: 3px 0;">말뚝 단면적 (m²)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$l_2$</td>
+                                            <td style="padding: 3px 0;">수중 말뚝 길이 (m)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 3px 10px;">$\gamma_w$</td>
+                                            <td style="padding: 3px 0;">물의 단위중량 = 10 kN/m³</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="calc-substitution" id="upliftCalc4">
+                                    전체 자중: $W_{total} = w_{pile} \times L = $ - kN
+                                </div>
+                                <div class="calc-substitution" id="upliftCalc5">
+                                    부력: $B = A_p \times l_2 \times \gamma_w = $ - kN
+                                </div>
+                                <div class="calc-substitution" id="upliftCalc6">
+                                    유효 자중: $W_p = W_{total} - B = $ - kN
+                                </div>
+                            </div>
+
+                            <div class="calc-step">
+                                <div class="calc-step-number">5-4</div>
+                                <div class="calc-result" id="upliftResult">
+                                    <strong>허용 인발 저항력:</strong><br>
+                                    $Q_{pull} = \frac{Q_u}{FS_p} + W_p = \frac{Q_s \times 0.8}{3.0} + W_p = $ - kN
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Charts Tab -->
+                <div class="tab-panel" id="tab-charts">
+                    <!-- Chart Controls -->
+                    <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">분석 결과</h2>
+                        <div style="display: flex; gap: 20px; align-items: center;">
+                            <div class="form-group" style="margin: 0; flex: 1; max-width: 300px;">
+                                <label class="form-label">시추공 선택</label>
+                                <select id="chartBoreholeSelect" class="form-select" onchange="updateDepthAnalysisCharts()">
+                                    <!-- Individual boreholes will be added dynamically -->
+                                </select>
+                            </div>
+                            <div style="padding: 10px 20px; background: var(--bg-tertiary); border-radius: 4px;">
+                                <strong>선택된 시추공:</strong> <span id="selectedChartTarget" style="color: var(--primary-navy); font-weight: 600;">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Depth Analysis Charts -->
+                    <div class="chart-grid">
+                        <div class="chart-container" style="grid-column: 1 / -1;">
+                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">
+                                깊이별 총 지지력 (주면+선단)
+                            </h3>
+                            <div class="chart-wrapper">
+                                <canvas id="depthCapacityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1m Unit Table -->
+                    <div class="summary-table-container" style="margin-top: 30px;">
+                        <h3 style="margin-bottom: 15px; color: var(--primary-navy);">
+                            깊이별 지지력 계산 상세 (1m 단위)
+                        </h3>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" id="depthAnalysisTable">
+                                <thead>
+                                    <tr>
+                                        <th>깊이 (m)</th>
+                                        <th>토층명</th>
+                                        <th>N값</th>
+                                        <th>주면마찰응력<br>(kPa)</th>
+                                        <th>누적 주면마찰력<br>(kN)</th>
+                                        <th>선단지지응력<br>(kPa)</th>
+                                        <th>선단지지력<br>(kN)</th>
+                                        <th>총 지지력<br>(kN)</th>
+                                        <th>비고</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="depthAnalysisTableBody">
+                                    <!-- Data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sensitivity Analysis Tab -->
+                <div class="tab-panel" id="tab-sensitivity">
+                    <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">민감도 분석</h2>
+                        
+                        <!-- Analysis Configuration -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <!-- Parameter 1 Selection -->
+                            <div class="form-group">
+                                <label class="form-label">변수 1 (X축)</label>
+                                <select id="sensitivityParam1" class="form-select">
+                                    <option value="diameter">말뚝 규격</option>
+                                    <option value="pileType">말뚝 종류</option>
+                                    <option value="penetration">지지층 근입깊이</option>
+                                    <option value="endBearingCoeff">선단지지력 계수</option>
+                                </select>
+                            </div>
+
+                            <!-- Parameter 2 Selection -->
+                            <div class="form-group">
+                                <label class="form-label">변수 2 (Y축)</label>
+                                <select id="sensitivityParam2" class="form-select">
+                                    <option value="penetration">지지층 근입깊이</option>
+                                    <option value="diameter">말뚝 규격</option>
+                                    <option value="pileType">말뚝 종류</option>
+                                    <option value="endBearingCoeff">선단지지력 계수</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Range Settings -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <!-- Parameter 1 Range -->
+                            <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px;">
+                                <label class="form-label" style="font-weight: 600; margin-bottom: 10px;">변수 1 범위</label>
+                                <div id="param1RangeControls">
+                                    <!-- Will be populated dynamically -->
+                                </div>
+                            </div>
+                            
+                            <!-- Parameter 2 Range -->
+                            <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px;">
+                                <label class="form-label" style="font-weight: 600; margin-bottom: 10px;">변수 2 범위</label>
+                                <div id="param2RangeControls">
+                                    <!-- Will be populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Options -->
+                        <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                            <label class="form-label" style="font-weight: 600; margin-bottom: 10px;">분석 지표</label>
+                            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                    <input type="checkbox" id="sensitivityAllowable" checked>
+                                    <span>허용지지력 (kN)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                    <input type="checkbox" id="sensitivitySettlement">
+                                    <span>침하량 (mm)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                    <input type="checkbox" id="sensitivityHorizontal">
+                                    <span>수평지지력 (kN)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;" title="비용지수: 말뚝 단면적 기준 상대 비용 (현행 설계 = 100, 값이 작을수록 저렴)">
+                                    <input type="checkbox" id="sensitivityCost">
+                                    <span>비용지수</span>
+                                </label>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px; width: 100%; padding: 10px; background: var(--bg-tertiary); border-radius: 4px;">
+                                    <strong>비용지수 계산 방식:</strong><br>
+                                    • 비용지수 = (재료량 비율) × (단가 비율) × 100<br>
+                                    • 재료량 비율 = (직경/기준직경)² × (길이/기준길이)<br>
+                                    • 단가 비율 = 말뚝 종류별 단가 비율 (PHC=1.0, 강관=설정값)<br>
+                                    • 현행 설계 = 100 기준, 값이 작을수록 저렴<br>
+                                    <br>
+                                    ※ 강관/PHC 비용 비율은 "설계 기준" 섹션에서 설정할 수 있습니다.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Borehole Selection -->
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label class="form-label">분석 대상 시추공</label>
+                            <select id="sensitivityBoreholeSelect" class="form-select">
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+
+                        <!-- Action Button -->
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="runSensitivityAnalysis()">분석 실행</button>
+                            <button class="btn btn-secondary" onclick="resetSensitivityAnalysis()">초기화</button>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div id="sensitivityResults" style="display: none;">
+                        <!-- Heatmap Chart -->
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">히트맵 분석</h3>
+                            <div class="chart-wrapper" style="height: 500px;">
+                                <canvas id="sensitivityHeatmapChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Comparison Table -->
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">비교 분석</h3>
+                            <div style="overflow-x: auto;">
+                                <table class="data-table" id="sensitivityComparisonTable">
+                                    <thead>
+                                        <tr>
+                                            <th>구분</th>
+                                            <th>현행 설계</th>
+                                            <th>대안 1</th>
+                                            <th>대안 2</th>
+                                            <th>대안 3</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sensitivityComparisonTableBody">
+                                        <!-- Will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Results Table -->
+                        <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">상세 결과</h3>
+                            <div style="overflow-x: auto;">
+                                <table class="data-table" id="sensitivityDetailTable">
+                                    <thead id="sensitivityDetailTableHead">
+                                        <!-- Will be populated dynamically -->
+                                    </thead>
+                                    <tbody id="sensitivityDetailTableBody">
+                                        <!-- Will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Tab -->
+                <div class="tab-panel" id="tab-report">
+                    <div class="calculation-container">
+                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">종합 설계 보고서</h2>
+
+                        <!-- 보고서 설정 패널 -->
+                        <div id="reportSettingsPanel" style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                            <h3 style="color: var(--primary-steel); margin-bottom: 15px; font-size: 1rem;">보고서 설정</h3>
+
+                            <!-- 회사 로고 업로드 -->
+                            <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-primary);">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">회사 로고</label>
+                                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                    <input type="file" id="companyLogoInput" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+                                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('companyLogoInput').click()" style="padding: 8px 16px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                            <polyline points="21 15 16 10 5 21"></polyline>
+                                        </svg>
+                                        로고 업로드
+                                    </button>
+                                    <div id="logoPreviewContainer" style="display: none; align-items: center; gap: 10px;">
+                                        <img id="logoPreview" src="" alt="로고 미리보기" style="max-height: 50px; max-width: 150px; border: 1px solid var(--border-primary); border-radius: 4px; padding: 5px; background: white;">
+                                        <button type="button" class="btn" onclick="removeLogo()" style="padding: 5px 10px; background: #dc3545; color: white; font-size: 0.8rem;">삭제</button>
+                                    </div>
+                                    <span id="logoFileName" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                                </div>
+                            </div>
+
+                            <!-- 섹션 선택 -->
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">포함할 섹션 선택</label>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary);">
+                                        <input type="checkbox" id="sectionCover" checked class="report-section-checkbox">
+                                        <span>표지</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary);">
+                                        <input type="checkbox" id="sectionSummary" checked class="report-section-checkbox">
+                                        <span>요약 (Executive Summary)</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary);">
+                                        <input type="checkbox" id="sectionDesignConditions" checked class="report-section-checkbox">
+                                        <span>설계 조건</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary);">
+                                        <input type="checkbox" id="sectionDetailedCalc" checked class="report-section-checkbox">
+                                        <span>시추공별 상세 계산서</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary);">
+                                        <input type="checkbox" id="sectionAppendix" checked class="report-section-checkbox">
+                                        <span>부록 (공식 및 제원)</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary);">
+                                        <input type="checkbox" id="sectionSignature" checked class="report-section-checkbox">
+                                        <span>서명란</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 시추공 선택 -->
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">포함할 시추공 선택</label>
+                                <div id="boreholeSelectionContainer" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                    <span style="color: var(--text-secondary); font-size: 0.9rem;">시추공 데이터를 먼저 로드해주세요.</span>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <button type="button" class="btn btn-secondary" onclick="selectAllBoreholes(true)" style="padding: 5px 12px; font-size: 0.85rem; margin-right: 5px;">전체 선택</button>
+                                    <button type="button" class="btn btn-secondary" onclick="selectAllBoreholes(false)" style="padding: 5px 12px; font-size: 0.85rem;">전체 해제</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 보고서 내용 -->
+                        <div id="reportContent" style="background: white; border: 1px solid var(--border-primary); border-radius: 4px; min-height: 400px;">
+                            <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                                <p style="font-size: 1.1rem; margin-bottom: 10px;">종합 설계 보고서</p>
+                                <p style="margin-bottom: 20px;">위 설정을 완료한 후 "보고서 생성" 버튼을 클릭하세요.</p>
+                                <p style="font-size: 0.9rem; color: var(--text-muted);">
+                                    ※ 보고서에는 다음 내용이 포함됩니다:<br>
+                                    - 프로젝트 개요 및 설계 조건<br>
+                                    - 시추공별 상세 계산서<br>
+                                    - 부록: 말뚝 제원 및 적용 공식
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 버튼 그룹 -->
+                        <div class="btn-group" style="margin-top: 20px;">
+                            <button class="btn btn-primary" onclick="generateReport()" style="padding: 12px 24px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                                </svg>
+                                보고서 생성
+                            </button>
+                            <button class="btn btn-primary" onclick="exportToPDF()" style="background: #c0392b; padding: 12px 24px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <path d="M12 18v-6"></path>
+                                    <path d="M9 15l3 3 3-3"></path>
+                                </svg>
+                                PDF 내보내기
+                            </button>
+                            <button class="btn btn-primary" onclick="exportToWord()" style="background: #2E7D32; padding: 12px 24px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                </svg>
+                                Word 내보내기
+                            </button>
+                            <button class="btn btn-secondary" onclick="printReport()" style="padding: 12px 24px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                    <rect x="6" y="14" width="12" height="8"></rect>
+                                </svg>
+                                인쇄
+                            </button>
+                        </div>
+
+                        <!-- PDF 생성 진행 상태 -->
+                        <div id="pdfProgressContainer" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                                <span id="pdfProgressText" style="font-weight: 500;">PDF 생성 중...</span>
+                            </div>
+                            <div style="background: var(--border-primary); border-radius: 4px; height: 8px; overflow: hidden;">
+                                <div id="pdfProgressBar" style="background: var(--primary-navy); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appendix Tab -->
+                <div class="tab-panel" id="tab-appendix">
+                    <div class="calculation-container">
+                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">부록 (Appendix)</h2>
+                        
+                        <!-- A. 설계 기준 및 참고 문헌 -->
+                        <div style="margin-bottom: 40px;">
+                            <h3 style="color: var(--primary-steel); margin-bottom: 15px;">A. 설계 기준 및 참고 문헌</h3>
+                            <ul style="margin-left: 20px; line-height: 1.8;">
+                                <li><strong>구조물기초설계기준</strong> (말뚝기초)</li>
+                                <li>도로교설계기준 (수평지반반력계수 산정)</li>
+                                <li>Tomlinson (1957) - α법 주면마찰력</li>
+                                <li>Vesic, A.S. (1977) - 침하량 산정</li>
+                                <li>Chang, Y.L. (1937) - 수평 변위기준 지지력</li>
+                                <li>Broms, B. (1964) - 수평 파괴기준 지지력</li>
+                            </ul>
+                        </div>
+
+                        <!-- B. 말뚝 제원 -->
+                        <div style="margin-bottom: 40px;">
+                            <h3 style="color: var(--primary-steel); margin-bottom: 15px;">B. 말뚝 제원 (Pile Specifications)</h3>
+                            
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">B-1. PHC 말뚝 제원</h4>
+                            <div style="overflow-x: auto; margin-bottom: 30px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>규격</th>
+                                            <th>외경 (m)</th>
+                                            <th>벽두께 (m)</th>
+                                            <th>단면적 (m²)</th>
+                                            <th>단면2차모멘트 (m⁴)</th>
+                                            <th>허용지지력 (kN)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="phcSpecTable">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">B-2. 강관 말뚝 제원 (주요 규격)</h4>
+                            <div style="margin-bottom: 20px;">
+                                <p style="margin: 5px 0;"><strong>강재 규격:</strong> KS F 4602, JIS A 5525, ASTM A252</p>
+                                <p style="margin: 5px 0;"><strong>탄성계수:</strong> E = 205,000 MPa</p>
+                                <p style="margin: 5px 0;"><strong>포아송비:</strong> ν = 0.3</p>
+                                <p style="margin: 5px 0;"><strong>단위중량:</strong> γ = 7.85 t/m³</p>
+                            </div>
+                            <div style="overflow-x: auto; margin-bottom: 30px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>외경 (mm)</th>
+                                            <th>벽두께 (mm)</th>
+                                            <th>재료</th>
+                                            <th>항복강도 (MPa)</th>
+                                            <th>설명</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td rowspan="5" style="vertical-align: middle;">318.5 ~ 1524.0</td>
+                                            <td rowspan="5" style="vertical-align: middle;">6.0 ~ 25.4</td>
+                                            <td>SKK400</td>
+                                            <td>235</td>
+                                            <td>일반 강관말뚝용 강재 (KS F 4602)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>SKK490</td>
+                                            <td>315</td>
+                                            <td>고강도 강관말뚝용 강재 (KS F 4602)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>SKK540</td>
+                                            <td>380</td>
+                                            <td>고강도 강관말뚝용 강재 (KS F 4602)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>STK400</td>
+                                            <td>235</td>
+                                            <td>일반 구조용 탄소강 강관 (JIS A 5525)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>ASTM Grade 3</td>
+                                            <td>310</td>
+                                            <td>고강도 강관말뚝용 강재 (ASTM A252)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p style="margin: 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
+                                ※ 강관 말뚝의 실제 제원은 선택한 외경, 벽두께, 재료에 따라 자동 계산됩니다.
+                            </p>
+                        </div>
+
+                        <!-- C. 적용된 지반 관련 공식 -->
+                        <div style="margin-bottom: 40px;">
+                            <h3 style="color: var(--primary-steel); margin-bottom: 15px;">C. 적용된 지반 관련 공식</h3>
+                            
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">C-1. 연직 지지력 계산 (구조물 기초 설계 기준)</h4>
+                            <div style="padding: 15px; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 20px;">
+                                <p style="margin: 10px 0; font-weight: 600;">1) 허용지지력 기본식</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$R_a = \frac{1}{F_s}(R_p + R_f) - W_e$$</p>
+                                <p style="margin: 5px 0;">여기서, $R_p$ = 극한 선단지지력, $R_f$ = 극한 주면마찰력, $F_s$ = 안전율 (3.0), $W_e$ = 유효 자중</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">2) 주면마찰력 (Rf)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$R_f = \sum_{i=1}^{n} (f_{si} \times A_{si})$$</p>
+                                <p style="margin: 5px 0;">여기서, $f_{si}$ = 주면마찰응력 (kN/m²), $A_{si}$ = 주면면적 (m²)</p>
+
+                                <p style="margin: 15px 0 5px 0; font-weight: 600;">주면마찰응력 (fs) 산정:</p>
+                                <p style="margin: 5px 0 5px 20px;"><strong>점성토 (α법 - Tomlinson):</strong></p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">$c_u = 12 \times N$ (kN/m²)</p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">$\alpha = \begin{cases} 1.0 & (c_u < 25) \\ 0.9 & (25 \leq c_u < 50) \\ 0.7 & (50 \leq c_u < 100) \\ 0.5 & (c_u \geq 100) \end{cases}$</p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">$f_s = \min(\alpha \times c_u, 150)$ (kN/m², 상한 150)</p>
+
+                                <p style="margin: 10px 0 5px 20px;"><strong>사질토:</strong></p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">$f_s = \min(2 \times N, 200)$ (kN/m², 상한 200)</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">3) 선단지지력 (Rp)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$R_p = q_p \times A_p$$</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">타입말뚝: $q_p = \min(300 \times N, 15,000)$ (kN/m²)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">매입말뚝: $q_p = \min(200 \times N, 12,000)$ (kN/m²)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$A_p = \frac{\pi \times D^2}{4}$$ (m²)</p>
+                                <p style="margin: 5px 0;">여기서, $N$ = 선단부 상부 1D~하부 4D 구간 평균 N값 (최대 60)</p>
+
+                                <p style="margin: 15px 0 5px 0; font-weight: 600;">4) 허용지지력</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$Q_a = \min\left(\frac{Q_u}{FS_v}, Q_{a,material}\right)$$</p>
+                                <p style="margin: 5px 0;">여기서, $FS_v$ = 연직 안전율 (3.0), $Q_{a,material}$ = 재료 허용지지력</p>
+
+                                <p style="margin: 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
+                                    ※ 시공방법에 따른 보정: 타입말뚝 = 1.0, 매입말뚝 = 0.7
+                                </p>
+                            </div>
+                            
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">C-2. 침하량 계산 (3성분 합산법)</h4>
+                            <div style="padding: 15px; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 20px;">
+                                <p style="margin: 10px 0; font-weight: 600;">총 침하량</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$S_{total} = S_s + S_p + S_{ps} + S_c$$</p>
+
+                                <p style="margin: 15px 0 5px 0; font-weight: 600;">1) 말뚝 탄성압축 (Ss)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$S_s = \frac{(Q_{ps} + \alpha_s \cdot Q_{fs}) \times L}{A_p \times E_p}$$ (m → mm 변환)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$\alpha_s = 0.67$ (삼각형 분포 가정)</p>
+                                <p style="margin: 5px 0;">여기서, $Q_{ps}$ = 선단 전달 하중, $Q_{fs}$ = 주면 전달 하중</p>
+                                <p style="margin: 5px 0 10px 20px;">PHC 말뚝: $E_p = 40,000,000$ kPa (40,000 MPa)</p>
+                                <p style="margin: 5px 0 10px 20px;">강관 말뚝: $E_p = 205,000,000$ kPa (205,000 MPa)</p>
+
+                                <p style="margin: 15px 0 5px 0; font-weight: 600;">2) 선단 하부 지반 침하 (Sp)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$S_p = \frac{C_p \times Q_{ps}}{D \times q_p}$$ (m → mm 변환)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$C_p$ = 경험계수</p>
+                                <table style="margin: 10px 20px; font-size: 0.9rem; border-collapse: collapse;">
+                                    <tr><td style="padding: 3px 10px; border: 1px solid #ccc;">타입말뚝 (사질토)</td><td style="padding: 3px 10px; border: 1px solid #ccc;">0.02 ~ 0.04</td></tr>
+                                    <tr><td style="padding: 3px 10px; border: 1px solid #ccc;">매입말뚝 (사질토)</td><td style="padding: 3px 10px; border: 1px solid #ccc;">0.09 ~ 0.18 (권장 0.12)</td></tr>
+                                    <tr><td style="padding: 3px 10px; border: 1px solid #ccc;">매입말뚝 (풍화암)</td><td style="padding: 3px 10px; border: 1px solid #ccc;">0.09</td></tr>
+                                </table>
+
+                                <p style="margin: 15px 0 5px 0; font-weight: 600;">3) 주면마찰력에 의한 침하 (Sps) - Vesic 변형식</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$S_{ps} = \frac{Q_{fs} \times C_s}{L \times q_p}$$ (m → mm 변환)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$C_s = (0.93 + 0.16\sqrt{L/D}) \times C_p$$</p>
+
+                                <p style="margin: 15px 0 5px 0; font-weight: 600;">4) 압밀침하 (Sc)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$S_c = 0$$ (암반 지지층의 경우)</p>
+
+                                <p style="margin: 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
+                                    ※ 허용침하량: 교량 25mm, 일반건물 25~50mm, 발전소/정밀기초 15~20mm
+                                </p>
+                            </div>
+                            
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">C-3. 수평 지지력 계산 (도로교설계기준)</h4>
+                            <div style="padding: 15px; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 20px;">
+                                <p style="margin: 10px 0; font-weight: 600;">1) 수평지반반력계수 (kh) 산정</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;"><strong>지반변형계수 (E₀):</strong></p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">일반토사 (N < 30): $E_0 = 700 \times N$ (kN/m²)</p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">풍화암/조밀토 (N ≥ 30): $E_0 = 2,800 \times N$ (kN/m²)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;"><strong>수평지반반력계수:</strong></p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">점성토 (후쿠오카식): $k_h = 6,910 \times N^{0.406}$ (kN/m³)</p>
+                                <p style="margin: 5px 0 10px 40px; font-size: 1.05rem;">사질토 (요코야마식): $k_h = 2,000 \times N$ (kN/m³)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">최소값: $k_{h,min} = 10,000$ kN/m³</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 0.95rem; color: var(--text-secondary);">
+                                    ※ 상부 5m 구간의 평균 N값을 기반으로 자동 산정됩니다.
+                                </p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">2) Chang's Method (변위 기준)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">특성계수: $$\beta = \sqrt[4]{\frac{k_h \times D}{4 \times E \times I}}$$ (m⁻¹)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">장말뚝 판정: $\beta L > 2.5$ (장말뚝), $\beta L \leq 2.5$ (단말뚝)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">허용 수평지지력: $$H_{a,Chang} = \frac{2\sqrt{EI \cdot k_h \cdot D} \cdot Y}{FS_h}$$ (kN)</p>
+                                <p style="margin: 5px 0;">여기서, $Y$ = 허용변위 (영구 15mm, 가설 25mm), $FS_h$ = 수평 안전율 (2.0)</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">3) Broms' Method (파괴 기준)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">항복모멘트: $M_y = Z_p \times \sigma_y$ (kN·m)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">플라스틱 단면계수: $Z_p = \frac{4}{3} \times (R^3 - r^3)$ (m³)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 0.95rem;">여기서, $R = D/2$ (외반경), $r = d/2$ (내반경), $d = D - 2t$</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">극한 수평지지력: $$H_u = \frac{9 M_y}{\gamma \times D^3 \times K_p}$$ (kN)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">허용 수평지지력: $$H_{a,Broms} = \frac{H_u}{FS_h}$$ (kN)</p>
+                                <p style="margin: 5px 0;">여기서, $\gamma$ = 토질 단위중량 (18 kN/m³), $K_p = \tan^2(45 + \phi/2) \approx 3$ (φ=30°)</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">4) 최종 허용 수평지지력</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$H_a = \min(H_{a,Chang}, H_{a,Broms})$$</p>
+                                <p style="margin: 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
+                                    ※ 변위기준(Chang)과 파괴기준(Broms) 중 작은 값을 보수적으로 적용합니다.
+                                </p>
+                            </div>
+                            
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">C-4. 인발 저항력 계산 (구조물 기초 설계 기준)</h4>
+                            <div style="padding: 15px; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 20px;">
+                                <p style="margin: 10px 0; font-weight: 600;">기본 공식</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.1rem;">$$Q_{pull} = \frac{Q_u}{FS_p} + W_p$$ (kN)</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">1) 인발 극한저항력 (Qu)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$$Q_u = Q_s \times 0.8$$ (저감계수 적용)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 0.95rem; color: var(--text-secondary);">
+                                    ※ 인발 시 주면마찰력은 압축의 80% 적용 (선단지지력 기여 없음)
+                                </p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">사질토: $f_s = 1.6 \times N$ (상한 120 kN/m²)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">점성토: $f_s = 4.0 \times N$ 또는 $0.64 \times c_u$ (상한 120 kN/m²)</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">2) 유효 자중 (Wp) 산정</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">전체 자중: $W_{total} = w_{pile} \times L$ (kN)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">부력: $B = A_p \times l_{sub} \times \gamma_w$ (kN)</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">유효 자중: $W_p = W_{total} - B$ (kN)</p>
+                                <p style="margin: 5px 0;">여기서, $l_{sub}$ = 지하수위 아래 말뚝 길이 (m), $\gamma_w$ = 10 kN/m³</p>
+
+                                <p style="margin: 15px 0 10px 0; font-weight: 600;">3) 안전율</p>
+                                <p style="margin: 5px 0 10px 20px; font-size: 1.05rem;">$FS_p$ = 3.0 (정역학적 공식 기준)</p>
+
+                                <p style="margin: 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
+                                    ※ 인발 저항력은 저감된 주면마찰력에 안전율을 적용한 후 유효 자중을 더하여 산정합니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- D. 토질정수 추정 근거 -->
+                        <div style="margin-bottom: 40px;">
+                            <h3 style="color: var(--primary-steel); margin-bottom: 15px;">D. 토질정수 추정 근거</h3>
+                            <p style="margin-bottom: 15px; color: var(--text-secondary);">
+                                N값이 측정되지 않은 지층의 경우, 지층명 및 토질 특성을 기반으로 아래 기준에 따라 토질정수를 추정합니다.
+                            </p>
+
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">D-1. 비배수전단강도 (c<sub>u</sub>) 추정식</h4>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>추정식</th>
+                                            <th>공식</th>
+                                            <th>출처</th>
+                                            <th>적용 대상</th>
+                                            <th>비고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Terzaghi & Peck</td>
+                                            <td>$c_u = 6.25 \times N$ (kPa)</td>
+                                            <td>Terzaghi & Peck (1967)</td>
+                                            <td>정규압밀 점토</td>
+                                            <td>가장 보편적 사용</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Stroud</td>
+                                            <td>$c_u = 4.4 \times N$ (kPa)</td>
+                                            <td>Stroud (1974)</td>
+                                            <td>과압밀 점토</td>
+                                            <td>보수적 추정</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Hara</td>
+                                            <td>$c_u = 29 \times N^{0.72}$ (kPa)</td>
+                                            <td>Hara et al. (1974)</td>
+                                            <td>일본 점토</td>
+                                            <td>비선형 관계</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 10px 15px; background: #fff3cd; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                                <p style="margin: 0; font-size: 0.9rem;"><strong>참고:</strong> 점성토 기본값은 Terzaghi & Peck (1967) 공식을 적용합니다.
+                                <strong>혼합토(CL+SM 등)</strong>는 점성토 공식의 70%를 적용합니다 (c<sub>u</sub> = 6.25 × N × 0.7).
+                                사질토의 경우 c<sub>u</sub> = 0으로 설정됩니다 (배수조건, 마찰력 지배).</p>
+                            </div>
+
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">D-2. 내부마찰각 (φ) 추정식</h4>
+                            <p style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary);">사질토/혼합토:</p>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>추정식</th>
+                                            <th>공식</th>
+                                            <th>출처</th>
+                                            <th>적용 대상</th>
+                                            <th>비고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Dunham</td>
+                                            <td>$\phi = \sqrt{12N} + 15$ (°)</td>
+                                            <td>Dunham (1954)</td>
+                                            <td>사질토, 혼합토</td>
+                                            <td>널리 사용</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Peck</td>
+                                            <td>$\phi = 28 + 0.4N$ (°), max 40°</td>
+                                            <td>Peck et al. (1953)</td>
+                                            <td>사질토</td>
+                                            <td>상한 40° 제한</td>
+                                        </tr>
+                                        <tr>
+                                            <td>JRA</td>
+                                            <td>$\phi = \sqrt{20N} + 15$ (°)</td>
+                                            <td>일본도로협회 (1996)</td>
+                                            <td>사질토 일반</td>
+                                            <td>일본 기준</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <p style="margin-bottom: 10px; font-weight: 600; color: var(--text-secondary);">점성토 유효 내부마찰각 (φ'):</p>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>점토 상태</th>
+                                            <th>N값 범위</th>
+                                            <th>φ' (°)</th>
+                                            <th>비고</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>연약</td><td>N ≤ 2</td><td>18</td><td>유효응력 기준</td></tr>
+                                        <tr><td>연약~중간</td><td>2 &lt; N ≤ 4</td><td>22</td><td>유효응력 기준</td></tr>
+                                        <tr><td>중간</td><td>4 &lt; N ≤ 8</td><td>25</td><td>유효응력 기준</td></tr>
+                                        <tr><td>견고</td><td>8 &lt; N ≤ 15</td><td>28</td><td>유효응력 기준</td></tr>
+                                        <tr><td>매우 견고</td><td>N &gt; 15</td><td>30</td><td>유효응력 기준</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 10px 15px; background: #fff3cd; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                                <p style="margin: 0; font-size: 0.9rem;"><strong>참고:</strong> 사질토/혼합토는 Dunham (1954) 공식을 적용합니다.
+                                점성토의 경우 전응력 해석(φ=0)이 아닌 <strong>유효응력 해석(φ'>0)</strong>을 적용하여 N값 기반 경험적 내부마찰각을 산정합니다.
+                                CL(저소성 점토)은 φ'=20~30°, CH(고소성 점토)는 φ'=15~25° 범위입니다.</p>
+                            </div>
+
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">D-3. 단위중량 (γ) 추정 범위</h4>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>지층 종류</th>
+                                            <th>단위중량 범위 (kN/m³)</th>
+                                            <th>기본 적용값</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>유기질토</td><td>12 ~ 16</td><td>14</td></tr>
+                                        <tr><td>연약점토</td><td>15 ~ 17</td><td>16</td></tr>
+                                        <tr><td>보통점토</td><td>17 ~ 19</td><td>18</td></tr>
+                                        <tr><td>느슨한 모래</td><td>16 ~ 18</td><td>17</td></tr>
+                                        <tr><td>조밀한 모래</td><td>18 ~ 20</td><td>19</td></tr>
+                                        <tr><td>풍화토</td><td>18 ~ 20</td><td>19</td></tr>
+                                        <tr><td>풍화암</td><td>20 ~ 23</td><td>21</td></tr>
+                                        <tr><td>연암</td><td>22 ~ 25</td><td>23</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 10px 15px; background: #d4edda; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+                                <p style="margin: 0; font-size: 0.9rem;"><strong>참고:</strong> 지하수위 아래에서는 수중단위중량 (γ' = γ<sub>sat</sub> - 10)을 적용해야 합니다.</p>
+                            </div>
+
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">D-4. 탄성계수 (E) 추정식</h4>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>지층 종류</th>
+                                            <th>추정식</th>
+                                            <th>출처</th>
+                                            <th>경험적 범위</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>점성토</td>
+                                            <td>$E = 300 \sim 500 \times c_u$ (kPa)</td>
+                                            <td>Duncan & Buchignani (1976)</td>
+                                            <td>2 ~ 30 MPa</td>
+                                        </tr>
+                                        <tr>
+                                            <td>사질토</td>
+                                            <td>$E = 500 \sim 1500 \times \sqrt{N}$ (kPa)</td>
+                                            <td>Bowles (1996)</td>
+                                            <td>10 ~ 80 MPa</td>
+                                        </tr>
+                                        <tr>
+                                            <td>일반 (간편식)</td>
+                                            <td>$E = 2.5 \times N$ (MPa)</td>
+                                            <td>실무 간편식</td>
+                                            <td>개략적 추정용</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 10px 15px; background: #fff3cd; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                                <p style="margin: 0; font-size: 0.9rem;"><strong>참고:</strong> 기본적으로 간편식 (E = 2.5N)을 적용하며, 정밀 검토 시 지층 특성에 따른 별도 공식을 사용합니다.</p>
+                            </div>
+
+                            <h4 style="color: var(--primary-navy); margin: 20px 0 10px 0;">D-5. N값 미측정 시 지층명 기반 기본값</h4>
+                            <p style="margin-bottom: 10px; color: var(--text-secondary);">
+                                시료가 채취되지 않은 지층의 경우, 지층명을 분석하여 아래 기본값을 적용합니다:
+                            </p>
+                            <div style="overflow-x: auto; margin-bottom: 20px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>지층 분류</th>
+                                            <th>대표 지층명</th>
+                                            <th>기본 N값</th>
+                                            <th>c<sub>u</sub> (kPa)</th>
+                                            <th>φ (°)</th>
+                                            <th>γ (kN/m³)</th>
+                                            <th>E (MPa)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>매립토</td><td>매립층, 성토층</td><td>5</td><td>-</td><td>28</td><td>17</td><td>12.5</td></tr>
+                                        <tr><td>연약 점토</td><td>점토, 실트, 연약층</td><td>4</td><td>25</td><td>-</td><td>16</td><td>10</td></tr>
+                                        <tr><td>모래</td><td>사층, 모래층, 사질토</td><td>15</td><td>-</td><td>32</td><td>18</td><td>37.5</td></tr>
+                                        <tr><td>자갈</td><td>자갈층, 역층, 사력층</td><td>30</td><td>-</td><td>36</td><td>20</td><td>75</td></tr>
+                                        <tr><td>풍화토</td><td>풍화토, 풍화잔류토</td><td>25</td><td>-</td><td>33</td><td>19</td><td>62.5</td></tr>
+                                        <tr><td>풍화암</td><td>풍화암</td><td>50</td><td>-</td><td>38</td><td>21</td><td>125</td></tr>
+                                        <tr><td>연암</td><td>연암, 기반암</td><td>50+</td><td>-</td><td>40</td><td>23</td><td>200+</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 10px 15px; background: #f8d7da; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
+                                <p style="margin: 0; font-size: 0.9rem;"><strong>주의:</strong> 위 기본값은 N값 데이터가 없는 경우에 한하여 참고용으로 사용됩니다.
+                                실제 설계 시에는 현장 시험 결과를 우선 적용해야 하며, 기본값 적용 시 보수적 판단이 필요합니다.
+                                화면에서 "(샘플없음-추정)"으로 표기된 지층은 이 기준이 적용된 것입니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Enhanced Modal for Detail Editing -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>시추공 상세 편집: <span id="modalBorehole"></span></h3>
+            </div>
+            <div class="modal-body">
+                <div class="modal-body-grid">
+                    <!-- Left: Borehole Visualization -->
+                    <div style="border-right: 1px solid var(--border-secondary); padding-right: 20px;">
+                        <h4 style="margin-bottom: 15px; color: var(--primary-navy);">지질 단면도</h4>
+                        <canvas id="modalCanvas" width="350" height="500" style="border: 1px solid var(--border-primary); background: white;"></canvas>
+                    </div>
+                    
+                    <!-- Right: Layer Properties -->
+                    <div>
+                        <h4 style="margin-bottom: 15px; color: var(--primary-navy);">지층별 토질 매개변수</h4>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" id="modalLayerTable">
+                                <thead>
+                                    <tr>
+                                        <th>깊이 (EL, m)</th>
+                                        <th>토층명</th>
+                                        <th>N값</th>
+                                        <th>cu (kPa)</th>
+                                        <th>φ (°)</th>
+                                        <th>γ (kN/m³)</th>
+                                        <th>E (MPa)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 4px;">
+                            <h5 style="margin-bottom: 10px; color: var(--primary-steel);">계산 정보</h5>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 0.9rem;">
+                                <div>
+                                    <strong>지표고:</strong> <span id="modalGL">-</span>
+                                </div>
+                                <div>
+                                    <strong id="modalExcLabel">작업면:</strong> <span id="modalExc">-</span>
+                                </div>
+                                <div>
+                                    <strong>지지층:</strong> <span id="modalBearing">-</span>
+                                </div>
+                                <div>
+                                    <strong>말뚝길이:</strong> <span id="modalLength">-</span> m
+                                </div>
+                                <div>
+                                    <strong>지하수위:</strong> <span id="modalGWT">-</span>
+                                </div>
+                                <div>
+                                    <strong>근입깊이:</strong> <span id="modalPenetration">1.0</span> m
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveModalData()">저장 및 재계산</button>
+                <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/app.js"></script>
+</body>
+</html>
