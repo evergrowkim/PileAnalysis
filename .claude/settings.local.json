@@ -8,7 +8,8 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: 말뚝 기초 설계 분석 시스템\n\n- 시추주상도 데이터 분석 및 지층별 토질정수 산정\n- PHC/강관 말뚝 설계 계산 기능\n- 토질정수\\(cu, φ, γ, E\\) 추정 근거 도움말 기능\n- 혼합토\\(CL, SM 등\\) 분류 및 점성토 유효내부마찰각 적용\n- 민감도 분석, 보고서 생성, 부록 기능\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git config:*)",
       "Bash(git push:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

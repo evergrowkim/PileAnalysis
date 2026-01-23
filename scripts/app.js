@@ -11182,19 +11182,89 @@ ${htmlContent}
         }
 
         /**
+         * 대시보드용 헬퍼: 시추공에서 지표고 가져오기
+         */
+        function getDashboardGL(bh) {
+            if (!bh || !bh.metadata) return null;
+            return parseFloat(bh.metadata.Excavation_level) || parseFloat(bh.metadata.GROUND_SURFACE_LEVEL) || null;
+        }
+
+        /**
+         * 대시보드용 헬퍼: 시추공에서 지하수위 표고 가져오기
+         */
+        function getDashboardGWL(bh) {
+            if (!bh || !bh.metadata) return null;
+            const gwlStr = bh.metadata.GROUND_WATER_LEVEL || bh.metadata._GROUND_WATER_LEVEL_PARSED;
+            if (!gwlStr || gwlStr === '') return null;
+            const gwlDepth = parseFloat(gwlStr);
+            if (isNaN(gwlDepth)) return null;
+            const gl = getDashboardGL(bh);
+            if (gl === null) return null;
+            return gwlDepth < 0 ? gl + gwlDepth : gwlDepth;
+        }
+
+        /**
+         * 대시보드용 헬퍼: 시추공에서 풍화암 표고 가져오기
+         */
+        function getDashboardWRLevel(bh) {
+            if (!bh || !bh.soil_data) return null;
+            const gl = getDashboardGL(bh);
+            if (gl === null) return null;
+            for (const layer of bh.soil_data) {
+                if (layer.soil_name && layer.soil_name.includes('풍화암')) {
+                    const match = layer.depth_range?.match(/(\d+\.?\d*)/);
+                    if (match) return gl - parseFloat(match[1]);
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 대시보드용 헬퍼: 시추공에서 연암 표고 가져오기
+         */
+        function getDashboardSRLevel(bh) {
+            if (!bh || !bh.soil_data) return null;
+            const gl = getDashboardGL(bh);
+            if (gl === null) return null;
+            for (const layer of bh.soil_data) {
+                if (layer.soil_name && layer.soil_name.includes('연암')) {
+                    const match = layer.depth_range?.match(/(\d+\.?\d*)/);
+                    if (match) return gl - parseFloat(match[1]);
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 대시보드용 헬퍼: 시추공에서 시추종료 표고 가져오기
+         */
+        function getDashboardEndLevel(bh) {
+            if (!bh || !bh.soil_data || bh.soil_data.length === 0) return null;
+            const gl = getDashboardGL(bh);
+            if (gl === null) return null;
+            const lastLayer = bh.soil_data[bh.soil_data.length - 1];
+            const match = lastLayer.depth_range?.match(/~\s*(\d+\.?\d*)/);
+            if (match) return gl - parseFloat(match[1]);
+            return null;
+        }
+
+        /**
          * 대시보드 통계 업데이트
          */
         function updateDashboardStats() {
             const count = boreholeData.length;
-            const avgGL = boreholeData.reduce((sum, bh) => sum + (parseFloat(bh.groundElevation) || 0), 0) / count;
+
+            // 지표고 평균
+            const glValues = boreholeData.map(bh => getDashboardGL(bh)).filter(v => v !== null);
+            const avgGL = glValues.length > 0 ? glValues.reduce((a, b) => a + b, 0) / glValues.length : null;
 
             // 지하수위 평균
-            const bhWithGW = boreholeData.filter(bh => bh.waterTableElevation != null);
-            const avgGW = bhWithGW.length > 0 ? bhWithGW.reduce((sum, bh) => sum + bh.waterTableElevation, 0) / bhWithGW.length : null;
+            const gwValues = boreholeData.map(bh => getDashboardGWL(bh)).filter(v => v !== null);
+            const avgGW = gwValues.length > 0 ? gwValues.reduce((a, b) => a + b, 0) / gwValues.length : null;
 
             // 풍화암 평균
-            const bhWithWR = boreholeData.filter(bh => bh.weatheredRockElevation && bh.weatheredRockElevation !== '-');
-            const avgWR = bhWithWR.length > 0 ? bhWithWR.reduce((sum, bh) => sum + parseFloat(bh.weatheredRockElevation), 0) / bhWithWR.length : null;
+            const wrValues = boreholeData.map(bh => getDashboardWRLevel(bh)).filter(v => v !== null);
+            const avgWR = wrValues.length > 0 ? wrValues.reduce((a, b) => a + b, 0) / wrValues.length : null;
 
             const setStatText = (id, value) => {
                 const el = document.getElementById(id);
@@ -11216,8 +11286,8 @@ ${htmlContent}
 
             const soilTypes = new Set();
             boreholeData.forEach(bh => {
-                if (bh.soilData) {
-                    bh.soilData.forEach(layer => {
+                if (bh.soil_data) {
+                    bh.soil_data.forEach(layer => {
                         if (layer.soil_name) soilTypes.add(layer.soil_name);
                     });
                 }
@@ -11261,8 +11331,9 @@ ${htmlContent}
 
             // 필터링
             let filteredData = boreholeData.filter(bh => {
-                const matchSearch = bh.holeNo.toLowerCase().includes(searchTerm);
-                const matchSoil = soilFilter === 'all' || (bh.soilData && bh.soilData.some(l => l.soil_name === soilFilter));
+                const holeNo = bh.hole_no || '';
+                const matchSearch = holeNo.toLowerCase().includes(searchTerm);
+                const matchSoil = soilFilter === 'all' || (bh.soil_data && bh.soil_data.some(l => l.soil_name === soilFilter));
                 return matchSearch && matchSoil;
             });
 
@@ -11272,31 +11343,32 @@ ${htmlContent}
                 switch (dashboardSortConfig.key) {
                     case 'holeNo':
                         const extractNum = (str) => {
+                            if (!str) return 0;
                             const match = str.match(/(\d+)/g);
                             return match ? parseInt(match[match.length - 1]) : 0;
                         };
-                        aVal = extractNum(a.holeNo);
-                        bVal = extractNum(b.holeNo);
+                        aVal = extractNum(a.hole_no);
+                        bVal = extractNum(b.hole_no);
                         break;
                     case 'groundLevel':
-                        aVal = parseFloat(a.groundElevation) || 0;
-                        bVal = parseFloat(b.groundElevation) || 0;
+                        aVal = getDashboardGL(a) || 0;
+                        bVal = getDashboardGL(b) || 0;
                         break;
                     case 'gwLevel':
-                        aVal = a.waterTableElevation ?? -9999;
-                        bVal = b.waterTableElevation ?? -9999;
+                        aVal = getDashboardGWL(a) ?? -9999;
+                        bVal = getDashboardGWL(b) ?? -9999;
                         break;
                     case 'weatheredRock':
-                        aVal = (a.weatheredRockElevation && a.weatheredRockElevation !== '-') ? parseFloat(a.weatheredRockElevation) : -9999;
-                        bVal = (b.weatheredRockElevation && b.weatheredRockElevation !== '-') ? parseFloat(b.weatheredRockElevation) : -9999;
+                        aVal = getDashboardWRLevel(a) ?? -9999;
+                        bVal = getDashboardWRLevel(b) ?? -9999;
                         break;
                     case 'softRock':
-                        aVal = (a.softRockPlusElevation && a.softRockPlusElevation !== '-') ? parseFloat(a.softRockPlusElevation) : -9999;
-                        bVal = (b.softRockPlusElevation && b.softRockPlusElevation !== '-') ? parseFloat(b.softRockPlusElevation) : -9999;
+                        aVal = getDashboardSRLevel(a) ?? -9999;
+                        bVal = getDashboardSRLevel(b) ?? -9999;
                         break;
                     case 'endLevel':
-                        aVal = a.boreholeEndElevation ? parseFloat(a.boreholeEndElevation) : -9999;
-                        bVal = b.boreholeEndElevation ? parseFloat(b.boreholeEndElevation) : -9999;
+                        aVal = getDashboardEndLevel(a) ?? -9999;
+                        bVal = getDashboardEndLevel(b) ?? -9999;
                         break;
                     default:
                         aVal = a[dashboardSortConfig.key];
@@ -11310,18 +11382,19 @@ ${htmlContent}
 
             // 렌더링
             tbody.innerHTML = filteredData.map(bh => {
-                const gl = parseFloat(bh.groundElevation) || 0;
-                const gwEL = bh.waterTableElevation;
-                const wrEL = (bh.weatheredRockElevation && bh.weatheredRockElevation !== '-') ? parseFloat(bh.weatheredRockElevation) : null;
-                const srEL = (bh.softRockPlusElevation && bh.softRockPlusElevation !== '-') ? parseFloat(bh.softRockPlusElevation) : null;
-                const endEL = bh.boreholeEndElevation ? parseFloat(bh.boreholeEndElevation) : null;
+                const holeNo = bh.hole_no || 'Unknown';
+                const gl = getDashboardGL(bh);
+                const gwEL = getDashboardGWL(bh);
+                const wrEL = getDashboardWRLevel(bh);
+                const srEL = getDashboardSRLevel(bh);
+                const endEL = getDashboardEndLevel(bh);
 
                 const sparkline = generateNValueSparkline(bh);
                 const soilTags = generateSoilTags(bh);
 
                 return `
                     <tr style="border-bottom: 1px solid #F0F0F0;" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='white'">
-                        <td style="padding: 10px 8px; font-weight: 600; color: #1F2937; font-size: 13px;">${bh.holeNo}</td>
+                        <td style="padding: 10px 8px; font-weight: 600; color: #1F2937; font-size: 13px;">${holeNo}</td>
                         <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(gl)}</td>
                         <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(gwEL)}</td>
                         <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(wrEL)}</td>
@@ -11330,15 +11403,15 @@ ${htmlContent}
                         <td style="padding: 10px 8px; text-align: center;">${sparkline}</td>
                         <td style="padding: 10px 8px;">${soilTags}</td>
                         <td style="padding: 10px 8px; text-align: center;">
-                            <button onclick="showBoreholeDetail('${bh.holeNo}')"
+                            <button onclick="showBoreholeDetail('${holeNo}')"
                                 style="color: #0284C7; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 500;">
                                 로그 보기
                             </button>
                         </td>
                         <td style="padding: 10px 8px; text-align: center;">
-                            <button onclick="deleteBorehole('${bh.holeNo}')"
+                            <button onclick="deleteBorehole('${holeNo}')"
                                 style="color: #EF4444; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;"
-                                title="${bh.holeNo} 삭제">
+                                title="${holeNo} 삭제">
                                 X
                             </button>
                         </td>
@@ -11363,15 +11436,28 @@ ${htmlContent}
          * N값 스파크라인 생성 (SVG 미니 차트)
          */
         function generateNValueSparkline(bh) {
-            if (!bh.sptData || bh.sptData.length === 0) return '<span style="color: #9E9E9E;">-</span>';
+            // soil_data에서 N값 추출
+            const nValues = [];
+            if (bh.soil_data) {
+                bh.soil_data.forEach(layer => {
+                    if (layer.samples) {
+                        layer.samples.forEach(s => {
+                            const hits = s.Hits || s.hits || '';
+                            const match = hits.match(/(\d+)\//);
+                            if (match) nValues.push(parseInt(match[1]));
+                        });
+                    }
+                });
+            }
+            if (nValues.length === 0) return '<span style="color: #9E9E9E;">-</span>';
 
             const maxN = 50;
             const width = 70;
             const height = 18;
 
-            const nValues = bh.sptData.map(s => Math.min(s.nValue || 0, maxN));
+            const cappedValues = nValues.map(n => Math.min(n, maxN));
 
-            const points = nValues.map((n, i) => {
+            const points = cappedValues.map((n, i) => {
                 const x = (i / (nValues.length - 1 || 1)) * width;
                 const y = height - (n / maxN) * height;
                 return `${x},${y}`;
@@ -11390,7 +11476,7 @@ ${htmlContent}
          * 지층 색상 태그 생성
          */
         function generateSoilTags(bh) {
-            if (!bh.soilData || bh.soilData.length === 0) return '-';
+            if (!bh.soil_data || bh.soil_data.length === 0) return '-';
 
             const soilColors = {
                 '매립층': { bg: '#78716C', text: '#FFFFFF' },
@@ -11421,11 +11507,11 @@ ${htmlContent}
                 return { bg: '#6B7280', text: '#FFFFFF' };
             }
 
-            const holeNo = bh.holeNo;
+            const holeNo = bh.hole_no || '';
             const isExpanded = window.expandedSoilTags[holeNo];
-            const totalLayers = bh.soilData.length;
+            const totalLayers = bh.soil_data.length;
             const defaultShowCount = 7;
-            const layers = isExpanded ? bh.soilData : bh.soilData.slice(0, defaultShowCount);
+            const layers = isExpanded ? bh.soil_data : bh.soil_data.slice(0, defaultShowCount);
             const remaining = totalLayers - defaultShowCount;
 
             let html = `<div style="display: flex; flex-wrap: wrap; gap: 3px; align-items: center;">`;
@@ -11482,10 +11568,11 @@ ${htmlContent}
             if (boreholeTab) {
                 boreholeTab.click();
             }
-            // 해당 시추공 선택 (boreholeSelect가 있으면)
+            // 해당 시추공 인덱스 찾기
+            const index = boreholeData.findIndex(bh => bh.hole_no === holeNo);
             const boreholeSelect = document.getElementById('boreholeSelect');
-            if (boreholeSelect) {
-                boreholeSelect.value = holeNo;
+            if (boreholeSelect && index > -1) {
+                boreholeSelect.value = index;
                 boreholeSelect.dispatchEvent(new Event('change'));
             }
         }
@@ -11496,7 +11583,7 @@ ${htmlContent}
         function deleteBorehole(holeNo) {
             if (!confirm(`${holeNo} 시추공을 삭제하시겠습니까?`)) return;
 
-            const index = boreholeData.findIndex(bh => bh.holeNo === holeNo);
+            const index = boreholeData.findIndex(bh => bh.hole_no === holeNo);
             if (index > -1) {
                 boreholeData.splice(index, 1);
                 updateDashboardTable();
