@@ -11183,24 +11183,43 @@ ${htmlContent}
 
         /**
          * 대시보드용 헬퍼: 시추공에서 지표고 가져오기
+         * 지원 형식: "E.L(+)51.05m", "EL.51.05m", 숫자
          */
         function getDashboardGL(bh) {
             if (!bh || !bh.metadata) return null;
-            return parseFloat(bh.metadata.Excavation_level) || parseFloat(bh.metadata.GROUND_SURFACE_LEVEL) || null;
+
+            // GROUND_SURFACE_LEVEL 파싱 (E.L(+)51.05m 형식)
+            const gsl = bh.metadata.GROUND_SURFACE_LEVEL;
+            if (gsl) {
+                const parsed = parseElevation(gsl);
+                if (parsed !== null) return parsed;
+            }
+
+            // Excavation_level (숫자)
+            const el = parseFloat(bh.metadata.Excavation_level);
+            if (!isNaN(el)) return el;
+
+            return null;
         }
 
         /**
          * 대시보드용 헬퍼: 시추공에서 지하수위 표고 가져오기
+         * 지원 형식: "GL(-)5.8m", "-5.8", 숫자
          */
         function getDashboardGWL(bh) {
             if (!bh || !bh.metadata) return null;
-            const gwlStr = bh.metadata.GROUND_WATER_LEVEL || bh.metadata._GROUND_WATER_LEVEL_PARSED;
+            const gwlStr = bh.metadata.GROUND_WATER_LEVEL;
             if (!gwlStr || gwlStr === '') return null;
-            const gwlDepth = parseFloat(gwlStr);
-            if (isNaN(gwlDepth)) return null;
+
             const gl = getDashboardGL(bh);
             if (gl === null) return null;
-            return gwlDepth < 0 ? gl + gwlDepth : gwlDepth;
+
+            // GL(-)5.8m 형식 파싱
+            const gwlDepth = parseGroundwaterLevel(gwlStr);
+            if (gwlDepth === null) return null;
+
+            // gwlDepth는 GL 기준 깊이 (음수), 지하수위 표고 = 지표고 + 깊이
+            return gl + gwlDepth;
         }
 
         /**
@@ -11595,4 +11614,46 @@ ${htmlContent}
                     updateSummaryTable();
                 }
             }
+        }
+
+        /**
+         * 대시보드 데이터를 Excel(CSV)로 내보내기
+         */
+        function exportDashboardToExcel() {
+            if (!boreholeData || boreholeData.length === 0) {
+                alert('내보낼 데이터가 없습니다.');
+                return;
+            }
+
+            // CSV 헤더
+            let csv = '\uFEFF'; // UTF-8 BOM
+            csv += '시추공,지표고(EL.m),지하수위(EL.m),풍화암(EL.m),연암(EL.m),시추종료(EL.m),토질구성\n';
+
+            // 데이터 행
+            boreholeData.forEach(bh => {
+                const holeNo = bh.hole_no || '';
+                const gl = getDashboardGL(bh);
+                const gw = getDashboardGWL(bh);
+                const wr = getDashboardWRLevel(bh);
+                const sr = getDashboardSRLevel(bh);
+                const end = getDashboardEndLevel(bh);
+
+                // 토질 구성
+                const soilList = bh.soil_data ? bh.soil_data.map(l => l.soil_name).join(' > ') : '';
+
+                csv += `${holeNo},`;
+                csv += `${gl !== null ? gl.toFixed(2) : '-'},`;
+                csv += `${gw !== null ? gw.toFixed(2) : '-'},`;
+                csv += `${wr !== null ? wr.toFixed(2) : '-'},`;
+                csv += `${sr !== null ? sr.toFixed(2) : '-'},`;
+                csv += `${end !== null ? end.toFixed(2) : '-'},`;
+                csv += `"${soilList}"\n`;
+            });
+
+            // 다운로드
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '시추공_대시보드.csv';
+            link.click();
         }

@@ -1,0 +1,720 @@
+{
+  "extracted_data": [
+    {
+      "hole_no": "NBH-1",
+      "metadata": {
+        "PROJECT_NAME": "전주 기자촌 주택 재개발 정비사업",
+        "HOLE_NO": "NBH-1",
+        "GROUND_SURFACE_LEVEL": "E.L(+)51.05m",
+        "LOCATION": "전북 전주시 완산구 중노송동 319-74 일원",
+        "X_COORDINATE": 358985.968,
+        "Y_COORDINATE": 213956.355,
+        "GROUND_WATER_LEVEL": "GL(-)5.8m",
+        "DATE": "2024. 11. 12",
+        "DRILLER": "이지훈",
+        "source_image_url": [
+          "s3://posco-ai/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_84.jpg"
+        ],
+        "source_image_signed_url": [
+          "https://posco-ai.s3.ap-northeast-2.amazonaws.com/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_84.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA47CRXUDJAEA7DNBZ%2F20251229%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251229T043535Z&X-Amz-Expires=7200&X-Amz-Signature=8429fbed5f376ad1096eeb7177156aff9eb67a3c5bebfe9f57ac709730a0f5b3&X-Amz-SignedHeaders=host&response-content-type=image%2Fjpeg&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        ],
+        "Excavation_level": 45
+      },
+      "sample_data": [],
+      "soil_data": [
+        {
+          "depth_range": "0.0~0.7m",
+          "soil_name": "매립층",
+          "soil_color": "황갈색 내지 암갈색",
+          "observation": "실트질 세립 내지 조립 모래와 세립 내지 조립 자갈로 매립됨. 습윤.",
+          "samples": []
+        },
+        {
+          "depth_range": "0.7~13.0m",
+          "soil_name": "풍화잔류토",
+          "soil_color": "황갈색 내지 암갈색",
+          "observation": "실트질 세립 내지 조립 모래(D-6). 느슨 내지 매우 조밀함. 습윤.",
+          "samples": [
+            {
+              "Sample_number": "1",
+              "Depth": 1,
+              "Hits": "6/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "2",
+              "Depth": 2,
+              "Hits": "15/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "3",
+              "Depth": 3,
+              "Hits": "25/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "4",
+              "Depth": 4,
+              "Hits": "30/29",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "5",
+              "Depth": 5,
+              "Hits": "31/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "6",
+              "Depth": 6,
+              "Hits": "34/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "7",
+              "Depth": 7,
+              "Hits": "41/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "8",
+              "Depth": 8,
+              "Hits": "47/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "9",
+              "Depth": 9,
+              "Hits": "49/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "10",
+              "Depth": 10,
+              "Hits": "50/21",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "11",
+              "Depth": 11,
+              "Hits": "50/17",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/16",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "13",
+              "Depth": 13,
+              "Hits": "50/10",
+              "Method": "관입시험기에 의한 시료"
+            }
+          ]
+        },
+        {
+          "depth_range": "13.0~20.0m",
+          "soil_name": "풍화암",
+          "soil_color": "황갈색 내지 담갈색",
+          "observation": "기반암의 풍화암반. 완전풍화(D-5) 내지 심한풍화(D-4). 실트질 세립 내지 조립 모래 형태로 채취됨. 매우 조밀하며 경도는 매우 연약 내지 연약함.",
+          "samples": [
+            {
+              "Sample_number": "13",
+              "Depth": 13,
+              "Hits": "50/10",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "14",
+              "Depth": 14,
+              "Hits": "50/10",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "15",
+              "Depth": 15,
+              "Hits": "50/9",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "16",
+              "Depth": 16,
+              "Hits": "50/8",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "17",
+              "Depth": 17,
+              "Hits": "50/7",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "18",
+              "Depth": 18,
+              "Hits": "50/6",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "19",
+              "Depth": 19,
+              "Hits": "50/6",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "20",
+              "Depth": 20,
+              "Hits": "50/6",
+              "Method": "관입시험기에 의한 시료"
+            }
+          ]
+        }
+      ],
+      "source_pdf_url": "processed_from_table_images"
+    },
+    {
+      "hole_no": "NBH-2",
+      "metadata": {
+        "PROJECT_NAME": "전주 기자촌 주택 재개발 정비사업",
+        "HOLE_NO": "NBH-2",
+        "GROUND_SURFACE_LEVEL": "E.L(+)59.93m",
+        "LOCATION": "전북 전주시 완산구 중노송동 319-74 일원",
+        "X_COORDINATE": 358983.075,
+        "Y_COORDINATE": 214009.844,
+        "GROUND_WATER_LEVEL": "GL(-)11.3m",
+        "DATE": "2024. 11. 13",
+        "DRILLER": "이 지 훈",
+        "source_image_url": [
+          "s3://posco-ai/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_85.jpg",
+          "s3://posco-ai/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_86.jpg"
+        ],
+        "source_image_signed_url": [
+          "https://posco-ai.s3.ap-northeast-2.amazonaws.com/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_85.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA47CRXUDJAEA7DNBZ%2F20251229%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251229T043535Z&X-Amz-Expires=7200&X-Amz-Signature=06592bb4b4017a0c5aa9ccd8cbc7733511f069d1d3c05deb2f38312dcec9b03f&X-Amz-SignedHeaders=host&response-content-type=image%2Fjpeg&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "https://posco-ai.s3.ap-northeast-2.amazonaws.com/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_86.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA47CRXUDJAEA7DNBZ%2F20251229%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251229T043535Z&X-Amz-Expires=7200&X-Amz-Signature=9678e576765e1858202f9f05bc6ba02c55c7dc74ae4e2ce175f9afbdeb8a9746&X-Amz-SignedHeaders=host&response-content-type=image%2Fjpeg&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        ],
+        "Excavation_level": 45
+      },
+      "sample_data": [],
+      "soil_data": [
+        {
+          "depth_range": "0.0~12.0m",
+          "soil_name": "풍화잔류토",
+          "soil_color": "황갈색 내지 암갈색",
+          "observation": "< 풍화잔류토층 > 실트질 세립 내지 조립 모래(D-6). 중간 조밀 내지 매우 조밀함. 습윤.",
+          "samples": [
+            {
+              "Sample_number": "1",
+              "Depth": 1,
+              "Hits": "12/30",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "2",
+              "Depth": 2,
+              "Hits": "17/30",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "3",
+              "Depth": 3,
+              "Hits": "32/30",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "4",
+              "Depth": 4,
+              "Hits": "41/30",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "5",
+              "Depth": 5,
+              "Hits": "49/30",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "6",
+              "Depth": 6,
+              "Hits": "50/23",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "7",
+              "Depth": 7,
+              "Hits": "50/16",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "8",
+              "Depth": 8,
+              "Hits": "50/13",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "9",
+              "Depth": 9,
+              "Hits": "50/11",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "10",
+              "Depth": 10,
+              "Hits": "50/11",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "11",
+              "Depth": 11,
+              "Hits": "50/11",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/10",
+              "Method": "자연시료"
+            }
+          ]
+        },
+        {
+          "depth_range": "12.0~23.0m",
+          "soil_name": "풍화암",
+          "soil_color": "",
+          "observation": "* 심도 23.0m 에서 시추종료 | < 풍화암반 > 기반암의 풍화암반. 완전풍화(D-5) 내지 심한풍화(D-4). 실트질 세립 내지 초립 모래 형태로 채취됨. 차별풍화로 경연이 교호하며, 부분적으로 풍화암편, 핵석(core stone) 또는 암맥(dyke)이 역상 내지 단주상 코어 및 slime 시료로 채취됨. 매우 조밀하며 경도는 매우 연약 내지 연약함.",
+          "samples": [
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/10",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "13",
+              "Depth": 13,
+              "Hits": "50/8",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "14",
+              "Depth": 14,
+              "Hits": "50/7",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "15",
+              "Depth": 15,
+              "Hits": "50/5",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "16",
+              "Depth": 16,
+              "Hits": "50/5",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "17",
+              "Depth": 17,
+              "Hits": "50/5",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "18",
+              "Depth": 18,
+              "Hits": "50/5",
+              "Method": "자연시료"
+            },
+            {
+              "Sample_number": "19",
+              "Depth": 19,
+              "Hits": "50/3",
+              "Method": "흐트러진시료"
+            },
+            {
+              "Sample_number": "20",
+              "Depth": 20,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "C-21",
+              "Depth": 21,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "C-22",
+              "Depth": 22,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "C-23",
+              "Depth": 23,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            }
+          ]
+        }
+      ],
+      "source_pdf_url": "processed_from_table_images"
+    },
+    {
+      "hole_no": "NBH-3",
+      "metadata": {
+        "PROJECT_NAME": "전주 기자촌 주택 재개발 정비사업",
+        "HOLE_NO": "NBH-3",
+        "GROUND_SURFACE_LEVEL": "E.L(+)64.95m",
+        "LOCATION": "전북 전주시 완산구 중노송동 319-74 일원",
+        "X_COORDINATE": 359000.095,
+        "Y_COORDINATE": 214076.828,
+        "GROUND_WATER_LEVEL": "GL(-)5.7m",
+        "DATE": "2024. 11. 13",
+        "DRILLER": "이지훈",
+        "source_image_url": [
+          "s3://posco-ai/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_87.jpg",
+          "s3://posco-ai/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_88.jpg"
+        ],
+        "source_image_signed_url": [
+          "https://posco-ai.s3.ap-northeast-2.amazonaws.com/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_87.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA47CRXUDJAEA7DNBZ%2F20251229%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251229T043535Z&X-Amz-Expires=7200&X-Amz-Signature=f7abd292ff1aa824f4d1d8d06692b85f00638c7bbc08312ee32eeb78895b3adf&X-Amz-SignedHeaders=host&response-content-type=image%2Fjpeg&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "https://posco-ai.s3.ap-northeast-2.amazonaws.com/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_88.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA47CRXUDJAEA7DNBZ%2F20251229%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251229T043535Z&X-Amz-Expires=7200&X-Amz-Signature=e62079b96348bb3661e6ae1c02a0b51f1b46d2f331ebd29e035d2178d46aebdb&X-Amz-SignedHeaders=host&response-content-type=image%2Fjpeg&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        ],
+        "Excavation_level": 45
+      },
+      "sample_data": [],
+      "soil_data": [
+        {
+          "depth_range": "0.0~0.3m",
+          "soil_name": "붕적층",
+          "soil_color": "황갈색 내지 담갈색",
+          "observation": "실트질 세립 내지 조립 모래. 습윤.",
+          "samples": []
+        },
+        {
+          "depth_range": "0.3~12.0m",
+          "soil_name": "풍화잔류토",
+          "soil_color": "황갈색 내지 암갈색",
+          "observation": "실트질 세립 내지 조립 모래(D-6). 조밀 내지 매우 조밀함. 습윤.",
+          "samples": [
+            {
+              "Sample_number": "1",
+              "Depth": 1,
+              "Hits": "39/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "2",
+              "Depth": 2,
+              "Hits": "43/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "3",
+              "Depth": 3,
+              "Hits": "50/25",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "4",
+              "Depth": 4,
+              "Hits": "50/20",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "5",
+              "Depth": 5,
+              "Hits": "50/16",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "6",
+              "Depth": 6,
+              "Hits": "50/13",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "7",
+              "Depth": 7,
+              "Hits": "50/13",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "8",
+              "Depth": 8,
+              "Hits": "50/12",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "9",
+              "Depth": 9,
+              "Hits": "50/11",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "10",
+              "Depth": 10,
+              "Hits": "50/11",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "11",
+              "Depth": 11,
+              "Hits": "50/11",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/9",
+              "Method": "관입시험기에 의한 시료"
+            }
+          ]
+        },
+        {
+          "depth_range": "12.0~23.0m",
+          "soil_name": "풍화암",
+          "soil_color": "황갈색 내지 담갈색",
+          "observation": "기반암의 풍화암반. 완전풍화(D-5) 내지 심한풍화(D-4). 실트질 세립 내지 조립 모래 형태로 채취됨. 차별풍화로 경연이 교호하며, 부분적으로 풍화암편, 핵석(core stone) 또는 암맥(dyke)이 력상 및 slime 시료로 채취됨. 매우 조밀하며 경도는 매우 연약 내지 연약함. | * 심도 23.0m 에서 시추종료",
+          "samples": [
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/9",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "13",
+              "Depth": 13,
+              "Hits": "50/8",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "14",
+              "Depth": 14,
+              "Hits": "50/7",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "15",
+              "Depth": 15,
+              "Hits": "50/5",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "16",
+              "Depth": 16,
+              "Hits": "50/5",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "17",
+              "Depth": 17,
+              "Hits": "50/5",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "18",
+              "Depth": 18,
+              "Hits": "50/5",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "19",
+              "Depth": 19,
+              "Hits": "50/5",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "20",
+              "Depth": 20,
+              "Hits": "50/4",
+              "Method": "흐트러진시료"
+            },
+            {
+              "Sample_number": "21",
+              "Depth": 21,
+              "Hits": "50/4",
+              "Method": "흐트러진시료"
+            },
+            {
+              "Sample_number": "22",
+              "Depth": 22,
+              "Hits": "50/4",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "23",
+              "Depth": 23,
+              "Hits": "50/4",
+              "Method": "흐트러진시료"
+            }
+          ]
+        }
+      ],
+      "source_pdf_url": "processed_from_table_images"
+    },
+    {
+      "hole_no": "NBH-4",
+      "metadata": {
+        "PROJECT_NAME": "전주 기자촌 주택 재개발 정비사업",
+        "HOLE_NO": "NBH-4",
+        "GROUND_SURFACE_LEVEL": "E.L(+)60.20m",
+        "LOCATION": "전북 전주시 완산구 중노송동 319-74 일원",
+        "X_COORDINATE": 359029.912,
+        "Y_COORDINATE": 214119.965,
+        "GROUND_WATER_LEVEL": "GL(-)3.8m",
+        "DATE": "2024. 11. 14",
+        "DRILLER": "이지훈",
+        "source_image_url": [
+          "s3://posco-ai/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_89.jpg"
+        ],
+        "source_image_signed_url": [
+          "https://posco-ai.s3.ap-northeast-2.amazonaws.com/3/1332/tables/91adff19-9399-4f32-8927-bed1691be6ce-1766305491741_page_89.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA47CRXUDJAEA7DNBZ%2F20251229%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251229T043535Z&X-Amz-Expires=7200&X-Amz-Signature=aa6aedfdc4ecd8d32bccf617490d65cc3aa71bb6e5cec398f7343cef6c6d480e&X-Amz-SignedHeaders=host&response-content-type=image%2Fjpeg&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        ],
+        "Excavation_level": 45
+      },
+      "sample_data": [],
+      "soil_data": [
+        {
+          "depth_range": "0.0~12.0m",
+          "soil_name": "풍화잔류토층",
+          "soil_color": "황갈색, 암갈색",
+          "observation": "실트질 세립 내지 조립 모래(D-6). 중간 조밀 내지 매우 조밀함. 습윤.",
+          "samples": [
+            {
+              "Sample_number": "1",
+              "Depth": 1,
+              "Hits": "14/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "2",
+              "Depth": 2,
+              "Hits": "21/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "3",
+              "Depth": 3,
+              "Hits": "28/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "4",
+              "Depth": 4,
+              "Hits": "34/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "5",
+              "Depth": 5,
+              "Hits": "48/30",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "6",
+              "Depth": 6,
+              "Hits": "50/24",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "7",
+              "Depth": 7,
+              "Hits": "50/23",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "8",
+              "Depth": 8,
+              "Hits": "50/20",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "9",
+              "Depth": 9,
+              "Hits": "50/19",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "10",
+              "Depth": 10,
+              "Hits": "50/15",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "11",
+              "Depth": 11,
+              "Hits": "50/12",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/10",
+              "Method": "관입시험기에 의한 시료"
+            }
+          ]
+        },
+        {
+          "depth_range": "12.0~19.0m",
+          "soil_name": "풍화암반",
+          "soil_color": "황갈색 내지 담갈색",
+          "observation": "기반암의 풍화암반. 완전풍화(D-5) 내지 심한풍화(D-4). 실트질 세립 내지 조립 모래 형태로 채취됨. 부분적으로 풍화암편, 핵석(core stone) 또는 암맥(dyke)이 역상 내지 단주상 코어 및 slime 시료로 채취됨. 매우 조밀하며 경도는 매우 연약 내지 연약함. 에서 시추종료",
+          "samples": [
+            {
+              "Sample_number": "12",
+              "Depth": 12,
+              "Hits": "50/10",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "13",
+              "Depth": 13,
+              "Hits": "50/5",
+              "Method": "관입시험기에 의한 시료"
+            },
+            {
+              "Sample_number": "14",
+              "Depth": 14,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "15",
+              "Depth": 15,
+              "Hits": "50/3",
+              "Method": "흐트러진시료"
+            },
+            {
+              "Sample_number": "16",
+              "Depth": 16,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "17",
+              "Depth": 17,
+              "Hits": "50/3",
+              "Method": "흐트러진시료"
+            },
+            {
+              "Sample_number": "18",
+              "Depth": 18,
+              "Hits": "50/3",
+              "Method": "코아시료"
+            },
+            {
+              "Sample_number": "19",
+              "Depth": 19,
+              "Hits": "50/3",
+              "Method": "흐트러진시료"
+            }
+          ]
+        }
+      ],
+      "source_pdf_url": "processed_from_table_images"
+    },
+    {
+  

@@ -620,70 +620,68 @@
 
                 <!-- Dashboard Tab - 대시보드 -->
                 <div class="tab-panel" id="tab-dashboard">
-                    <div class="dashboard-container" style="padding: 20px;">
-                        <!-- 상단 통계 카드 -->
-                        <div class="dashboard-stats" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-                            <div class="stat-card" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #0284C7;">
-                                <div style="font-size: 0.85rem; color: #6B7280; margin-bottom: 4px;">시추공 수</div>
-                                <div id="statTotalCount" style="font-size: 1.5rem; font-weight: 700; color: #1F2937;">-</div>
-                            </div>
-                            <div class="stat-card" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #10B981;">
-                                <div style="font-size: 0.85rem; color: #6B7280; margin-bottom: 4px;">평균 지표고</div>
-                                <div id="statAvgGL" style="font-size: 1.5rem; font-weight: 700; color: #1F2937;">-</div>
-                            </div>
-                            <div class="stat-card" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #3B82F6;">
-                                <div style="font-size: 0.85rem; color: #6B7280; margin-bottom: 4px;">평균 지하수위</div>
-                                <div id="statAvgGW" style="font-size: 1.5rem; font-weight: 700; color: #1F2937;">-</div>
-                            </div>
-                            <div class="stat-card" style="background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #78716C;">
-                                <div style="font-size: 0.85rem; color: #6B7280; margin-bottom: 4px;">평균 풍화암</div>
-                                <div id="statAvgWR" style="font-size: 1.5rem; font-weight: 700; color: #1F2937;">-</div>
-                            </div>
-                        </div>
-
-                        <!-- 필터/검색 영역 -->
-                        <div class="dashboard-controls" style="display: flex; gap: 16px; margin-bottom: 16px; align-items: center;">
-                            <div style="flex: 1;">
-                                <input type="text" id="dashboardSearch" placeholder="시추공 번호 검색..."
+                    <div class="dashboard-container" style="padding: 20px; background: #F8FAFC;">
+                        <!-- 헤더 영역: 제목 + Excel 버튼 + 검색/필터 -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #1F2937;">전체 시추공 한눈에 보기</h2>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <button onclick="exportDashboardToExcel()" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: #455A64; color: white; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer;">
+                                    <span style="font-size: 1rem;">&#8595;</span> EXCEL 내보내기
+                                </button>
+                                <input type="text" id="dashboardSearch" placeholder="시추공 검색..."
                                        oninput="filterDashboardTable()"
-                                       style="width: 100%; padding: 10px 14px; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 0.9rem;">
-                            </div>
-                            <div>
+                                       style="width: 180px; padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 0.85rem; background: white;">
                                 <select id="dashboardSoilFilter" onchange="filterDashboardTable()"
-                                        style="padding: 10px 14px; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 0.9rem; min-width: 150px;">
+                                        style="padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 0.85rem; min-width: 120px; background: white;">
                                     <option value="all">모든 토질</option>
                                 </select>
                             </div>
                         </div>
 
+                        <!-- 통계 영역 (한 줄) -->
+                        <div style="display: flex; gap: 24px; align-items: center; margin-bottom: 16px; padding: 12px 0; border-bottom: 1px solid #E5E7EB;">
+                            <div style="font-size: 0.9rem; color: #374151;">
+                                총 시추공: <strong id="statTotalCount" style="color: #1F2937;">-</strong>
+                            </div>
+                            <div style="font-size: 0.9rem; color: #374151;">
+                                평균 지표고: <strong id="statAvgGL" style="color: #1F2937;">-</strong>
+                            </div>
+                            <div style="font-size: 0.9rem; color: #374151;">
+                                평균 지하수위: <strong id="statAvgGW" style="color: #1F2937;">-</strong>
+                            </div>
+                            <div style="font-size: 0.9rem; color: #374151;">
+                                평균 풍화암: <strong id="statAvgWR" style="color: #1F2937;">-</strong>
+                            </div>
+                        </div>
+
                         <!-- 데이터 테이블 -->
-                        <div class="dashboard-table-wrapper" style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <div class="dashboard-table-wrapper" style="background: white; border-radius: 8px; border: 1px solid #E5E7EB; overflow: hidden;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                                 <thead>
-                                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0;">
-                                        <th onclick="sortDashboardTable('holeNo')" style="padding: 12px 8px; text-align: left; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
-                                            시추공 <span style="color: #94A3B8;">▲▼</span>
+                                    <tr style="background: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
+                                        <th onclick="sortDashboardTable('holeNo')" style="padding: 12px 10px; text-align: left; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
+                                            시추공 <span style="color: #94A3B8; font-size: 0.7rem;">&#8593;&#8595;</span>
                                         </th>
                                         <th onclick="sortDashboardTable('groundLevel')" style="padding: 12px 8px; text-align: center; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
-                                            지표고 (EL) <span style="color: #94A3B8;">▲▼</span>
+                                            지표고<br><span style="font-size: 0.75rem; font-weight: 400; color: #64748B;">(E.L m)</span>
                                         </th>
                                         <th onclick="sortDashboardTable('gwLevel')" style="padding: 12px 8px; text-align: center; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
-                                            지하수위 (EL) <span style="color: #94A3B8;">▲▼</span>
+                                            지하수위<br><span style="font-size: 0.75rem; font-weight: 400; color: #64748B;">(E.L m)</span>
                                         </th>
                                         <th onclick="sortDashboardTable('weatheredRock')" style="padding: 12px 8px; text-align: center; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
-                                            풍화암 (EL) <span style="color: #94A3B8;">▲▼</span>
+                                            풍화암<br><span style="font-size: 0.75rem; font-weight: 400; color: #64748B;">(E.L m)</span>
                                         </th>
                                         <th onclick="sortDashboardTable('softRock')" style="padding: 12px 8px; text-align: center; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
-                                            연암 (EL) <span style="color: #94A3B8;">▲▼</span>
+                                            연암<br><span style="font-size: 0.75rem; font-weight: 400; color: #64748B;">(E.L m)</span>
                                         </th>
                                         <th onclick="sortDashboardTable('endLevel')" style="padding: 12px 8px; text-align: center; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap;">
-                                            시추종료 (EL) <span style="color: #94A3B8;">▲▼</span>
+                                            시추종료<br><span style="font-size: 0.75rem; font-weight: 400; color: #64748B;">(E.L m)</span>
                                         </th>
                                         <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #475569; white-space: nowrap;">
                                             N값 추이
                                         </th>
                                         <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #475569;">
-                                            지층 구성
+                                            토질 구성
                                         </th>
                                         <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #475569;">
                                             상세
@@ -701,6 +699,9 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 0.8rem; color: #9CA3AF;">
+                            * '-'는 해당 층이 출현하지 않음을 의미합니다.
                         </div>
                     </div>
                 </div>
