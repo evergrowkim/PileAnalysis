@@ -107,6 +107,1259 @@
         };
 
         // ============================================================
+        // 설계기준별 공식 데이터베이스 (GeoAI 계산명세서 v2 기반)
+        // ============================================================
+        const DESIGN_STANDARDS = {
+            structural_foundation_2015: {
+                name: "구조물 기초 설계기준 (2015)",
+                shortName: "구조물기초",
+                color: "#1976d2",
+                description: "가장 범용적인 기준. Reese & O'Neill 방법 기반 주면마찰력, Meyerhof 방법 기반 선단지지력 적용.",
+                skinFriction: {
+                    pre_bored: {
+                        sand: { formula: "2.5 * min(N, 50)", upperLimit: 125, description: "fs = 2.5N (N≤50)" },
+                        clay: { formula: "0.8 * min(cu, 125)", upperLimit: 100, description: "fs = 0.8cu (cu≤125kPa)" },
+                        rock: { formula: "0.65 * Pa * sqrt(qu * 1000 / Pa)", upperLimit: null, description: "fs = 0.65Pa√(qu/Pa)" }
+                    },
+                    driven: {
+                        sand: { formula: "2.0 * min(N60, 50)", upperLimit: 100, description: "fs = 2N60 (N60≤50)" },
+                        clay: { formula: "alpha * cu", upperLimit: null, description: "fs = αcu (α=f(cu))" },
+                        rock: { formula: "0", upperLimit: 0, description: "암반 타입 불가" }
+                    }
+                },
+                endBearing: {
+                    pre_bored: {
+                        sand: { coefficient: 200, upperLimit: 12000, description: "qp = 200N (≤12,000kPa)" },
+                        clay: { formula: "6 * min(cu, 2000)", upperLimit: 12000, description: "qp = 6cu (≤12,000kPa)" },
+                        rock: { formula: "2.7 * qu * 1000", upperLimit: null, description: "qp = 2.7qu (Rowe & Armitage)" }
+                    },
+                    driven: {
+                        sand: { coefficient: 300, upperLimit: 15000, description: "qp = 300N (≤15,000kPa)" },
+                        clay: { formula: "9 * cu", upperLimit: null, description: "qp = 9cu (Nc=9)" },
+                        rock: { formula: "0", upperLimit: 0, description: "암반 타입 불가" }
+                    }
+                }
+            },
+            highway_bridge_2015: {
+                name: "도로교 설계기준 (2015)",
+                shortName: "도로교",
+                color: "#37474f",
+                description: "도로교량 기초 전용. 일본 기준 기반 주면마찰력, 근입깊이 고려 선단지지력 적용.",
+                skinFriction: {
+                    pre_bored: {
+                        sand: { formula: "min(5 * N, 150)", upperLimit: 150, description: "fs = 5N (≤150kPa, 일본 기준)" },
+                        clay: { formula: "min(cu, 10 * N, 100)", upperLimit: 100, description: "fs = min(cu, 10N, 100)" },
+                        rock: { formula: "0.65 * alpha_E * Pa * sqrt(qu * 1000 / Pa)", upperLimit: null, description: "fs = 0.65αEPa√(qu/Pa)" }
+                    },
+                    driven: {
+                        sand: { formula: "1.9 * N", upperLimit: null, description: "fs = 1.9N (변위말뚝)" },
+                        clay: { formula: "alpha * cu", upperLimit: null, description: "fs = αcu (α 차트)" },
+                        rock: { formula: "0", upperLimit: 0, description: "암반 타입 불가" }
+                    }
+                },
+                endBearing: {
+                    pre_bored: {
+                        // 시공방법별 계수 적용
+                        coefficients: {
+                            driven: 300,
+                            cement_paste: 200,
+                            prebored_final_driven: 300,
+                            prebored_final_light_driven: 250,
+                            prebored_enlarged: 250,
+                            inner_excavation_enlarged: 250,
+                            rotation_grouting: 250,
+                            cement_milk_sand: 150,
+                            cement_milk_gravel: 200
+                        },
+                        upperLimits: {
+                            driven: 12000,
+                            cement_paste: 8000,
+                            prebored_final_driven: 12000,
+                            prebored_final_light_driven: 10000,
+                            prebored_enlarged: 10000,
+                            inner_excavation_enlarged: 10000,
+                            rotation_grouting: 10000,
+                            cement_milk_sand: 7500,
+                            cement_milk_gravel: 10000
+                        },
+                        description: "qp = CN (시공방법별 계수)"
+                    },
+                    driven: {
+                        sand: { coefficient: 300, upperLimit: 15000, description: "qp = 300N (≤15,000kPa)" },
+                        clay: { formula: "9 * cu", upperLimit: null, description: "qp = 9cu (Nc=9)" },
+                        rock: { formula: "2.5 * qu * 1000", upperLimit: null, description: "qp = 2.5qu" }
+                    }
+                }
+            },
+            building_foundation_2005: {
+                name: "건축기초구조 설계기준 (2005)",
+                shortName: "건축기초",
+                color: "#7b1fa2",
+                description: "건축물 기초 전용. 선단부 N값 평균 적용, 보수적인 상한값.",
+                skinFriction: {
+                    pre_bored: {
+                        sand: { formula: "2.5 * min(N, 50)", upperLimit: 125, description: "fs = 2.5N (N≤50, 시멘트그라우트)" },
+                        clay: { formula: "0.8 * min(cu, 125)", upperLimit: 100, description: "fs = 0.8cu (cu≤125kPa)" },
+                        rock: { formula: "null", upperLimit: null, description: "해당 기준 없음" }
+                    },
+                    driven: {
+                        sand: { formula: "2.0 * min(N, 50)", upperLimit: 100, description: "fs = 2N (N≤50)" },
+                        clay: { formula: "beta * min(cu, 100)", upperLimit: 100, description: "fs = βcu (β=αp×LF)" },
+                        rock: { formula: "null", upperLimit: null, description: "해당 기준 없음" }
+                    }
+                },
+                endBearing: {
+                    pre_bored: {
+                        sand: { coefficient: 200, upperLimit: 12000, description: "qp = 200Ntip (≤12,000kPa)" },
+                        clay: { formula: "6 * min(cu, 2000)", upperLimit: 12000, description: "qp = 6cu (≤12,000kPa)" },
+                        rock: { formula: "null", upperLimit: null, description: "해당 기준 없음" }
+                    },
+                    driven: {
+                        sand: { coefficient: 300, upperLimit: 18000, description: "qp = 300Ntip (≤18,000kPa)" },
+                        clay: { formula: "6 * min(cu, 3000)", upperLimit: 18000, description: "qp = 6cu (≤18,000kPa)" },
+                        rock: { formula: "null", upperLimit: null, description: "해당 기준 없음" }
+                    }
+                }
+            }
+        };
+
+        // 시공방법별 계수 정보
+        const CONSTRUCTION_METHODS = {
+            driven: {
+                name: "타격공법 (Driven)",
+                type: "driven",
+                endBearingCoeff: 300,
+                endBearingLimit: 15000,
+                skinFrictionNote: "fs = 2N60 (≤100kPa)",
+                description: "말뚝을 해머로 타격하여 지반에 관입"
+            },
+            cement_paste: {
+                name: "시멘트페이스트 주입공법",
+                type: "pre_bored",
+                endBearingCoeff: 200,
+                endBearingLimit: 12000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "선굴착 후 시멘트페이스트 주입, 말뚝 삽입"
+            },
+            prebored_final_driven: {
+                name: "선굴착 최종타격공법",
+                type: "pre_bored",
+                endBearingCoeff: 300,
+                endBearingLimit: 12000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "선굴착 후 최종 타격으로 지지층 관입"
+            },
+            prebored_final_light_driven: {
+                name: "선굴착 최종경타공법",
+                type: "pre_bored",
+                endBearingCoeff: 250,
+                endBearingLimit: 10000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "선굴착 후 경량 타격으로 지지층 관입"
+            },
+            prebored_enlarged: {
+                name: "선굴착 확대고결공법",
+                type: "pre_bored",
+                endBearingCoeff: 250,
+                endBearingLimit: 10000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "선굴착 확대근고 + 시멘트밀크 충전"
+            },
+            inner_excavation_enlarged: {
+                name: "속파기 확대고결공법",
+                type: "pre_bored",
+                endBearingCoeff: 250,
+                endBearingLimit: 10000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "말뚝 내부 오거로 굴착, 확대근고 형성"
+            },
+            rotation_grouting: {
+                name: "회전고결공법 (SIP)",
+                type: "pre_bored",
+                endBearingCoeff: 250,
+                endBearingLimit: 10000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "말뚝 회전 관입, 시멘트밀크 분출"
+            },
+            cement_milk_sand: {
+                name: "시멘트밀크 분출교반 (모래층)",
+                type: "pre_bored",
+                endBearingCoeff: 150,
+                endBearingLimit: 7500,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "모래지반 시멘트밀크 분출교반 방식"
+            },
+            cement_milk_gravel: {
+                name: "시멘트밀크 분출교반 (사력층)",
+                type: "pre_bored",
+                endBearingCoeff: 200,
+                endBearingLimit: 10000,
+                skinFrictionNote: "fs = 2.5N (≤125kPa)",
+                description: "사력지반 시멘트밀크 분출교반 방식"
+            }
+        };
+
+        // 점성토 부착계수 α 조회 테이블 (cu 기반)
+        const ALPHA_TABLE = {
+            cu_kPa: [0, 25, 50, 75, 100, 150, 200, 300],
+            alpha: [1.0, 0.96, 0.75, 0.60, 0.50, 0.42, 0.35, 0.30]
+        };
+
+        // α값 보간 함수
+        function getAlphaFromCu(cu) {
+            const table = ALPHA_TABLE;
+            if (cu <= table.cu_kPa[0]) return table.alpha[0];
+            if (cu >= table.cu_kPa[table.cu_kPa.length - 1]) return table.alpha[table.alpha.length - 1];
+
+            for (let i = 0; i < table.cu_kPa.length - 1; i++) {
+                if (cu >= table.cu_kPa[i] && cu < table.cu_kPa[i + 1]) {
+                    // 선형 보간
+                    const ratio = (cu - table.cu_kPa[i]) / (table.cu_kPa[i + 1] - table.cu_kPa[i]);
+                    return table.alpha[i] + ratio * (table.alpha[i + 1] - table.alpha[i]);
+                }
+            }
+            return 0.5; // 기본값
+        }
+
+        // 토층명에서 토양 유형 결정 (sand, clay, rock)
+        function determineSoilType(soilName) {
+            if (!soilName) return 'sand';
+
+            const name = soilName.toLowerCase();
+
+            // 암반류
+            if (name.includes('암') || name.includes('rock') || name.includes('풍화암') || name.includes('기반암')) {
+                return 'rock';
+            }
+            // 점성토류
+            if (name.includes('점토') || name.includes('실트') || name.includes('clay') || name.includes('silt') ||
+                name.includes('점성') || name.includes('이암') || name.includes('셰일')) {
+                return 'clay';
+            }
+            // 사질토류 (기본값)
+            return 'sand';
+        }
+
+        // N값에서 비배수전단강도(cu) 추정 (kPa)
+        function estimateCu(N, soilType) {
+            if (soilType !== 'clay') return 0;
+            // 점성토: cu = 6.25 * N (kPa) - 경험식
+            return 6.25 * N;
+        }
+
+        // 현재 선택된 설계기준 가져오기
+        function getCurrentDesignStandard() {
+            const standardEl = document.getElementById('reviewDesignStandard');
+            return standardEl ? standardEl.value : 'structural_foundation_2015';
+        }
+
+        // 현재 선택된 시공방법 가져오기
+        function getCurrentConstructionMethod() {
+            const methodEl = document.getElementById('reviewConstMethod');
+            return methodEl ? methodEl.value : 'cement_paste';
+        }
+
+        // N60 계산 (해머효율 보정)
+        function calculateN60(N) {
+            const efficiencyEl = document.getElementById('reviewHammerEfficiency');
+            const efficiency = efficiencyEl ? parseFloat(efficiencyEl.value) || 60 : 60;
+            return N * efficiency / 60;
+        }
+
+        // ============================================================
+        // 설계기준별 주면마찰력 계산 함수
+        // ============================================================
+        function calculateSkinFriction(standard, pileType, soilType, N, N60, cu, depth) {
+            const Pa = 101.325;  // 대기압 (kPa)
+            let fs = 0;
+            let upperLimit = 200;  // 기본 상한
+
+            if (standard === 'structural_foundation_2015') {
+                if (pileType === 'pre_bored') {
+                    if (soilType === 'sand') {
+                        fs = 2.5 * Math.min(N, 50);
+                        upperLimit = 125;
+                    } else if (soilType === 'clay') {
+                        fs = 0.8 * Math.min(cu, 125);
+                        upperLimit = 100;
+                    } else if (soilType === 'rock') {
+                        // 암반: FHWA 방법 (qu 없으면 N값 기반 추정)
+                        const qu_estimated = N > 50 ? (N - 50) * 2 : 5;  // MPa 추정
+                        fs = 0.65 * Pa * Math.sqrt(qu_estimated * 1000 / Pa);
+                        upperLimit = 500;
+                    }
+                } else if (pileType === 'driven') {
+                    if (soilType === 'sand') {
+                        fs = 2.0 * Math.min(N60, 50);
+                        upperLimit = 100;
+                    } else if (soilType === 'clay') {
+                        const alpha = getAlphaFromCu(cu);
+                        fs = alpha * cu;
+                        upperLimit = 200;
+                    }
+                }
+            } else if (standard === 'highway_bridge_2015') {
+                if (pileType === 'pre_bored') {
+                    if (soilType === 'sand') {
+                        fs = 5 * N;  // 일본 기준
+                        upperLimit = 150;
+                    } else if (soilType === 'clay') {
+                        fs = Math.min(cu, 10 * N, 100);
+                        upperLimit = 100;
+                    } else if (soilType === 'rock') {
+                        const qu_estimated = N > 50 ? (N - 50) * 2 : 5;
+                        fs = 0.65 * Pa * Math.sqrt(qu_estimated * 1000 / Pa);
+                        upperLimit = 500;
+                    }
+                } else if (pileType === 'driven') {
+                    if (soilType === 'sand') {
+                        fs = 1.9 * N;  // 변위말뚝
+                        upperLimit = 200;
+                    } else if (soilType === 'clay') {
+                        const alpha = getAlphaFromCu(cu);
+                        fs = alpha * cu;
+                        upperLimit = 200;
+                    }
+                }
+            } else if (standard === 'building_foundation_2005') {
+                if (pileType === 'pre_bored') {
+                    if (soilType === 'sand') {
+                        fs = 2.5 * Math.min(N, 50);
+                        upperLimit = 125;
+                    } else if (soilType === 'clay') {
+                        fs = 0.8 * Math.min(cu, 125);
+                        upperLimit = 100;
+                    }
+                } else if (pileType === 'driven') {
+                    if (soilType === 'sand') {
+                        fs = 2.0 * Math.min(N, 50);
+                        upperLimit = 100;
+                    } else if (soilType === 'clay') {
+                        const beta = 0.8;  // αp × LF (기본값)
+                        fs = beta * Math.min(cu, 100);
+                        upperLimit = 100;
+                    }
+                }
+            }
+
+            // 상한값 적용
+            return Math.min(fs, upperLimit);
+        }
+
+        // 주면마찰력 공식 문자열 반환
+        function getSkinFrictionFormula(standard, pileType, soilType) {
+            const standardInfo = DESIGN_STANDARDS[standard];
+            if (!standardInfo) return 'N/A';
+
+            // 특정 토양 유형이 지정된 경우
+            if (pileType && soilType) {
+                const typeKey = pileType === 'driven' ? 'driven' : 'pre_bored';
+                const formula = standardInfo.skinFriction?.[typeKey]?.[soilType];
+                return formula?.description || 'N/A';
+            }
+
+            // 모든 공식을 표시 (상세 계산서용)
+            const constructionMethod = getCurrentConstructionMethod();
+            const typeKey = CONSTRUCTION_METHODS[constructionMethod]?.type === 'driven' ? 'driven' : 'pre_bored';
+            const formulas = standardInfo.skinFriction?.[typeKey];
+            if (!formulas) return 'N/A';
+
+            let result = '';
+            if (formulas.sand) result += `- 사질토: ${formulas.sand.description}<br>`;
+            if (formulas.clay) result += `- 점성토: ${formulas.clay.description}`;
+            return result || 'N/A';
+        }
+
+        // ============================================================
+        // 설계기준별 주면마찰력 계수 반환 함수 (표시용)
+        // ============================================================
+        function getSkinFrictionCoeff(standard, pileType, soilType) {
+            // 설계기준별 주면마찰력 계수 반환 (UI 표시용)
+            if (standard === 'structural_foundation_2015') {
+                if (pileType === 'driven') {
+                    if (soilType === 'sand') return '2.0N₆₀';
+                    if (soilType === 'clay') return 'α·cu';
+                    if (soilType === 'rock') return 'N/A';
+                } else {
+                    if (soilType === 'sand') return '2.5N';
+                    if (soilType === 'clay') return '0.8cu';
+                    if (soilType === 'rock') return 'FHWA';
+                }
+            } else if (standard === 'highway_bridge_2015') {
+                if (pileType === 'driven') {
+                    if (soilType === 'sand') return '1.9N';
+                    if (soilType === 'clay') return 'α·cu';
+                    if (soilType === 'rock') return 'N/A';
+                } else {
+                    if (soilType === 'sand') return '5N';
+                    if (soilType === 'clay') return 'min(cu,10N)';
+                    if (soilType === 'rock') return 'FHWA';
+                }
+            } else if (standard === 'building_foundation_2005') {
+                if (pileType === 'driven') {
+                    if (soilType === 'sand') return '2.0N';
+                    if (soilType === 'clay') return '0.8cu';
+                    if (soilType === 'rock') return 'N/A';
+                } else {
+                    if (soilType === 'sand') return '2.5N';
+                    if (soilType === 'clay') return '0.8cu';
+                    if (soilType === 'rock') return 'N/A';
+                }
+            }
+            return '-';
+        }
+
+        // ============================================================
+        // 설계기준별 선단지지력 계산 함수
+        // ============================================================
+        function calculateEndBearing(standard, pileType, soilType, N, cu, constructionMethod) {
+            let qp = 0;
+            let upperLimit = 15000;
+
+            if (standard === 'structural_foundation_2015') {
+                if (pileType === 'pre_bored') {
+                    if (soilType === 'sand' || soilType === 'rock') {
+                        qp = 200 * Math.min(N, 60);
+                        upperLimit = 12000;
+                    } else if (soilType === 'clay') {
+                        qp = 6 * cu;
+                        upperLimit = 12000;
+                    }
+                } else if (pileType === 'driven') {
+                    if (soilType === 'sand') {
+                        qp = 300 * Math.min(N, 50);
+                        upperLimit = 15000;
+                    } else if (soilType === 'clay') {
+                        qp = 9 * cu;
+                        upperLimit = 15000;
+                    }
+                }
+            } else if (standard === 'highway_bridge_2015') {
+                if (pileType === 'pre_bored') {
+                    // 시공방법별 계수
+                    const methodInfo = CONSTRUCTION_METHODS[constructionMethod];
+                    const coeff = methodInfo?.endBearingCoeff || 200;
+                    upperLimit = methodInfo?.endBearingLimit || 12000;
+                    qp = coeff * Math.min(N, 40);
+                } else if (pileType === 'driven') {
+                    if (soilType === 'sand') {
+                        qp = 300 * Math.min(N, 40);
+                        upperLimit = 12000;
+                    } else if (soilType === 'clay') {
+                        qp = 9 * cu;
+                        upperLimit = 15000;
+                    }
+                }
+            } else if (standard === 'building_foundation_2005') {
+                if (pileType === 'pre_bored') {
+                    if (soilType === 'sand' || soilType === 'rock') {
+                        qp = 200 * Math.min(N, 60);
+                        upperLimit = 12000;
+                    } else if (soilType === 'clay') {
+                        qp = 6 * cu;
+                        upperLimit = 12000;
+                    }
+                } else if (pileType === 'driven') {
+                    if (soilType === 'sand') {
+                        qp = 300 * Math.min(N, 60);
+                        upperLimit = 18000;
+                    } else if (soilType === 'clay') {
+                        qp = 6 * cu;
+                        upperLimit = 18000;
+                    }
+                }
+            }
+
+            return Math.min(qp, upperLimit);
+        }
+
+        // 선단지지력 공식 문자열 반환
+        function getEndBearingFormula(standard, constructionMethod, pileType, soilType) {
+            // 시공방법에서 말뚝 타입 결정
+            const method = constructionMethod || getCurrentConstructionMethod();
+            const methodInfo = CONSTRUCTION_METHODS[method];
+            const typeKey = methodInfo?.type === 'driven' ? 'driven' : 'pre_bored';
+
+            // 도로교 기준 + 매입말뚝인 경우 시공방법별 계수 사용
+            if (standard === 'highway_bridge_2015' && typeKey === 'pre_bored') {
+                return `qp = ${methodInfo?.endBearingCoeff || 200}N (≤${((methodInfo?.endBearingLimit || 12000)/1000).toFixed(0)},000kPa)`;
+            }
+
+            const standardInfo = DESIGN_STANDARDS[standard];
+            if (!standardInfo) return 'N/A';
+
+            // 특정 토양 유형이 지정된 경우
+            if (pileType && soilType) {
+                const formula = standardInfo.endBearing?.[pileType]?.[soilType];
+                return formula?.description || 'N/A';
+            }
+
+            // 모든 공식을 표시 (상세 계산서용)
+            const formulas = standardInfo.endBearing?.[typeKey];
+            if (!formulas) return 'N/A';
+
+            let result = '';
+            if (formulas.sand) result += `qp = ${formulas.sand.description}`;
+            return result || 'N/A';
+        }
+
+        // 설계기준 변경 시 UI 업데이트
+        function onDesignStandardChange() {
+            const standard = getCurrentDesignStandard();
+            const standardInfo = DESIGN_STANDARDS[standard];
+
+            // 설명 업데이트
+            const descEl = document.getElementById('standardDescription');
+            if (descEl && standardInfo) {
+                descEl.innerHTML = `<strong>특징:</strong> ${standardInfo.description}`;
+            }
+
+            // 비교 분석 체크박스 업데이트
+            updateComparisonCheckboxes(standard);
+
+            // 현재 공식 표시 업데이트
+            updateCurrentFormulaDisplay();
+
+            // 계산 결과 업데이트
+            if (boreholeData && boreholeData.length > 0) {
+                calculateAllBoreholes();
+            }
+        }
+
+        // 시공방법 변경 시 UI 업데이트
+        function onConstructionMethodChange() {
+            const method = getCurrentConstructionMethod();
+            const methodInfo = CONSTRUCTION_METHODS[method];
+
+            // 시공방법 설명 업데이트
+            const noteEl = document.getElementById('constMethodNote');
+            if (noteEl && methodInfo) {
+                noteEl.innerHTML = `선단계수: C=${methodInfo.endBearingCoeff}, 상한 ${(methodInfo.endBearingLimit/1000).toFixed(0)},000kPa | 주면: ${methodInfo.skinFrictionNote}`;
+            }
+
+            // 현재 공식 표시 업데이트
+            updateCurrentFormulaDisplay();
+
+            // 계산 결과 업데이트
+            if (boreholeData && boreholeData.length > 0) {
+                calculateAllBoreholes();
+            }
+        }
+
+        // 비교 분석 토글
+        function toggleStandardComparison() {
+            const chk = document.getElementById('chkCompareStandards');
+            const panel = document.getElementById('standardComparisonPanel');
+            if (chk && panel) {
+                panel.style.display = chk.checked ? 'block' : 'none';
+            }
+        }
+
+        // 비교 체크박스 업데이트
+        function updateComparisonCheckboxes(primaryStandard) {
+            const checkboxes = {
+                'chkCompare_structural': 'structural_foundation_2015',
+                'chkCompare_highway': 'highway_bridge_2015',
+                'chkCompare_building': 'building_foundation_2005'
+            };
+
+            for (const [id, value] of Object.entries(checkboxes)) {
+                const chk = document.getElementById(id);
+                if (chk) {
+                    if (value === primaryStandard) {
+                        chk.checked = true;
+                        chk.disabled = true;
+                    } else {
+                        chk.disabled = false;
+                    }
+                }
+            }
+        }
+
+        // 모든 시추공 재계산 (설계기준/시공방법 변경 시)
+        function calculateAllBoreholes() {
+            if (!boreholeData || boreholeData.length === 0) return;
+
+            // performAnalysis 호출하여 모든 시추공 재계산
+            performAnalysis();
+        }
+
+        // ============================================================
+        // N60 해머효율 보정 도움말 팝업
+        // ============================================================
+        function showN60HelpPopup() {
+            const modal = document.getElementById('n60HelpModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                // MathJax 렌더링
+                if (typeof MathJax !== 'undefined') {
+                    MathJax.typesetPromise([modal]).catch(err => console.log('MathJax error:', err));
+                }
+            }
+        }
+
+        function closeN60HelpPopup() {
+            const modal = document.getElementById('n60HelpModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // N60 미리보기 업데이트
+        function updateN60Preview() {
+            const efficiency = parseFloat(document.getElementById('reviewHammerEfficiency')?.value) || 60;
+            const previewEl = document.getElementById('n60PreviewCalc');
+            if (previewEl) {
+                const exampleN = 30;
+                const n60 = (exampleN * efficiency / 60).toFixed(1);
+                previewEl.textContent = `예: N=${exampleN} → N₆₀ = ${exampleN} × (${efficiency}/60) = ${n60}`;
+            }
+        }
+
+        // ============================================================
+        // 설계기준 비교 분석 - 완전 재구현 (MathJax 수식 포함)
+        // ============================================================
+
+        // 비교 분석 모달 열기
+        function showComparisonModal() {
+            if (!boreholeData || boreholeData.length === 0 || !calculationResults || calculationResults.length === 0) {
+                alert('비교 분석을 위해 먼저 "설정 적용 및 분석 시작"을 실행해주세요.');
+                return;
+            }
+
+            const modal = document.getElementById('comparisonModal');
+            const contentDiv = document.getElementById('comparisonModalContent');
+
+            // 시추공 선택 (첫 번째 또는 현재 선택된 시추공)
+            const boreholeSelect = document.getElementById('boreholeSelect');
+            const selectedIdx = boreholeSelect ? parseInt(boreholeSelect.value) : 0;
+            const borehole = boreholeData[selectedIdx] || boreholeData[0];
+
+            // 3개 기준에 대해 상세 계산 수행
+            const comparisonData = generateDetailedComparison(borehole);
+
+            // 모달 내용 생성
+            contentDiv.innerHTML = comparisonData.html;
+
+            // 부제목 업데이트
+            document.getElementById('comparisonModalSubtitle').textContent =
+                `시추공 ${borehole.hole_no} 기준 - 3개 설계기준 계산 과정 비교`;
+
+            // 모달 표시
+            modal.style.display = 'flex';
+
+            // MathJax 렌더링
+            setTimeout(() => {
+                if (typeof MathJax !== 'undefined') {
+                    MathJax.typesetPromise([contentDiv]).catch(err => console.log('MathJax error:', err));
+                }
+            }, 100);
+        }
+
+        function closeComparisonModal() {
+            const modal = document.getElementById('comparisonModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // 상세 비교 데이터 생성
+        function generateDetailedComparison(borehole) {
+            const pile = getCurrentPile();
+            const D = pile.diameter;
+            const constructionMethod = getCurrentConstructionMethod();
+            const constructionType = CONSTRUCTION_METHODS[constructionMethod]?.type || 'pre_bored';
+            const FSv = parseFloat(document.getElementById('sfVertical')?.value) || 3.0;
+            const hammerEfficiency = parseFloat(document.getElementById('reviewHammerEfficiency')?.value) || 60;
+
+            // 보수적인 색상 팔레트 (엔지니어링 문서에 적합)
+            const standards = [
+                { id: 'structural_foundation_2015', name: '구조물 기초 설계기준 (2015)', color: '#1a365d', shortName: '구조물기초' },
+                { id: 'highway_bridge_2015', name: '도로교 설계기준 (2015)', color: '#37474f', shortName: '도로교' },
+                { id: 'building_foundation_2005', name: '건축기초구조 설계기준 (2005)', color: '#455a64', shortName: '건축기초' }
+            ];
+
+            // 지층 정보 수집
+            const layers = [];
+            if (borehole.soil_data) {
+                borehole.soil_data.forEach(layer => {
+                    if (!layer || !layer.depth_range) return;
+                    const depthMatch = layer.depth_range.match(/([\d.]+)~([\d.]+)m/);
+                    if (!depthMatch) return;
+                    const depthFrom = parseFloat(depthMatch[1]);
+                    const depthTo = parseFloat(depthMatch[2]);
+                    const thickness = depthTo - depthFrom;
+                    if (thickness <= 0) return;
+
+                    const N = getAverageN(layer);
+                    const soilType = determineSoilType(layer.soil_name);
+                    const cu = estimateCu(N, soilType);
+
+                    layers.push({
+                        name: layer.soil_name,
+                        depthFrom, depthTo, thickness,
+                        N, soilType, cu
+                    });
+                });
+            }
+
+            // 선단 지지층 정보
+            const bearingLayer = borehole.soil_data?.find(l => l.soil_name?.includes('풍화암') || l.soil_name?.includes('암'));
+            const tipN = bearingLayer ? Math.min(getAverageN(bearingLayer), 50) : 50;
+            const tipSoilType = bearingLayer?.soil_name?.includes('암') ? 'rock' : 'sand';
+            const Ap = pile.crossArea || (Math.PI * D * D / 4);
+
+            // 각 기준별 계산 결과 수집
+            const results = {};
+            standards.forEach(std => {
+                let Qs = 0;
+                const layerDetails = [];
+
+                layers.forEach(layer => {
+                    const cappedN = Math.min(layer.N, 50);
+                    const N60 = cappedN * hammerEfficiency / 60;
+
+                    // 주면마찰력 계산 (fs: kPa, As: m², Qs: kN)
+                    // kPa × m² = kN (1000 나눌 필요 없음)
+                    const fs = calculateSkinFriction(std.id, constructionType, layer.soilType, cappedN, N60, layer.cu, layer.depthTo);
+                    const As = Math.PI * D * layer.thickness;
+                    const Qs_layer = fs * As;  // kPa × m² = kN
+                    Qs += Qs_layer;
+
+                    layerDetails.push({
+                        name: layer.name,
+                        depth: `${layer.depthFrom.toFixed(1)}~${layer.depthTo.toFixed(1)}`,
+                        thickness: layer.thickness,
+                        N: layer.N,
+                        cappedN,
+                        N60: N60.toFixed(1),
+                        soilType: layer.soilType,
+                        cu: layer.cu,
+                        fs: fs.toFixed(1),
+                        As: As.toFixed(3),
+                        Qs: Qs_layer.toFixed(1),
+                        formula: getSkinFrictionFormulaText(std.id, constructionType, layer.soilType)
+                    });
+                });
+
+                // 선단지지력 (qp: kPa, Ap: m², Qp: kN)
+                // kPa × m² = kN (1000 나눌 필요 없음)
+                const qp = calculateEndBearing(std.id, constructionType, tipSoilType, tipN, 0, constructionMethod);
+                const Qp = qp * Ap;  // kPa × m² = kN
+                const Qu = Qs + Qp;
+                const Qa = Qu / FSv;
+
+                results[std.id] = {
+                    ...std,
+                    Qs: Qs.toFixed(1),
+                    Qp: Qp.toFixed(1),
+                    Qu: Qu.toFixed(1),
+                    Qa: Qa.toFixed(1),
+                    qp: qp.toFixed(0),
+                    tipN,
+                    layerDetails,
+                    qpFormula: getEndBearingFormulaText(std.id, constructionType, tipSoilType, constructionMethod)
+                };
+            });
+
+            // HTML 생성
+            let html = `
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #1a365d; margin-bottom: 15px; border-bottom: 2px solid #1a365d; padding-bottom: 8px;">
+                        입력 조건 요약
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+                            <div style="font-size: 0.8rem; color: #666;">말뚝 직경</div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">${D} m</div>
+                        </div>
+                        <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+                            <div style="font-size: 0.8rem; color: #666;">말뚝 타입</div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">${constructionType === 'driven' ? '타입말뚝' : '매입말뚝'}</div>
+                        </div>
+                        <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+                            <div style="font-size: 0.8rem; color: #666;">시공방법</div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">${CONSTRUCTION_METHODS[constructionMethod]?.name || constructionMethod}</div>
+                        </div>
+                        <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+                            <div style="font-size: 0.8rem; color: #666;">해머효율 (N₆₀ 보정)</div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">${hammerEfficiency}%${constructionType === 'driven' ? ' (적용)' : ' (미적용)'}</div>
+                        </div>
+                        <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+                            <div style="font-size: 0.8rem; color: #666;">안전율 (FSv)</div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">${FSv}</div>
+                        </div>
+                        <div style="padding: 12px; background: #f5f5f5; border-radius: 6px;">
+                            <div style="font-size: 0.8rem; color: #666;">선단면적 (Ap)</div>
+                            <div style="font-size: 1.1rem; font-weight: 600;">${Ap.toFixed(4)} m²</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결과 요약 비교 -->
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #1a365d; margin-bottom: 15px; border-bottom: 2px solid #1a365d; padding-bottom: 8px;">
+                        계산 결과 비교
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 12px; background: #1a365d; color: white; text-align: left;">항목</th>
+                                ${standards.map(s => `<th style="padding: 12px; background: ${s.color}; color: white; text-align: center;">${s.shortName}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd;">주면마찰력 \\( Q_s \\) (kN)</td>
+                                ${standards.map(s => `<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${results[s.id].Qs}</td>`).join('')}
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd;">선단지지력 \\( Q_p \\) (kN)</td>
+                                ${standards.map(s => `<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${results[s.id].Qp}</td>`).join('')}
+                            </tr>
+                            <tr style="background: #f5f5f5;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">극한지지력 \\( Q_u = Q_s + Q_p \\) (kN)</td>
+                                ${standards.map(s => `<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: 600;">${results[s.id].Qu}</td>`).join('')}
+                            </tr>
+                            <tr style="background: #eceff1;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">허용지지력 \\( Q_a = Q_u / FS \\) (kN)</td>
+                                ${standards.map(s => `<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: 600; color: #1a5f7a;">${results[s.id].Qa}</td>`).join('')}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // 각 기준별 상세 계산 과정
+            standards.forEach(std => {
+                const r = results[std.id];
+                html += `
+                    <div style="margin-bottom: 30px; border: 2px solid ${std.color}; border-radius: 10px; overflow: hidden;">
+                        <div style="background: ${std.color}; color: white; padding: 12px 20px;">
+                            <h4 style="margin: 0;">${std.name}</h4>
+                        </div>
+                        <div style="padding: 20px;">
+                            <!-- 주면마찰력 상세 -->
+                            <h5 style="color: ${std.color}; margin-bottom: 12px;">1. 주면마찰력 (Skin Friction) 계산</h5>
+                            <div style="margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-radius: 6px;">
+                                <strong>적용 공식:</strong><br>
+                                ${r.layerDetails.length > 0 ? r.layerDetails[0].formula : 'N/A'}
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 15px;">
+                                <thead>
+                                    <tr style="background: #e0e0e0;">
+                                        <th style="padding: 8px; border: 1px solid #ccc;">지층</th>
+                                        <th style="padding: 8px; border: 1px solid #ccc;">깊이 (m)</th>
+                                        <th style="padding: 8px; border: 1px solid #ccc;">N값</th>
+                                        ${constructionType === 'driven' ? '<th style="padding: 8px; border: 1px solid #ccc;">N60</th>' : ''}
+                                        <th style="padding: 8px; border: 1px solid #ccc;">fs (kPa)</th>
+                                        <th style="padding: 8px; border: 1px solid #ccc;">As (m²)</th>
+                                        <th style="padding: 8px; border: 1px solid #ccc;">Qs (kN)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${r.layerDetails.map(ld => `
+                                        <tr>
+                                            <td style="padding: 6px; border: 1px solid #ccc;">${ld.name}</td>
+                                            <td style="padding: 6px; border: 1px solid #ccc; text-align: center;">${ld.depth}</td>
+                                            <td style="padding: 6px; border: 1px solid #ccc; text-align: center;">${ld.cappedN}</td>
+                                            ${constructionType === 'driven' ? `<td style="padding: 6px; border: 1px solid #ccc; text-align: center;">${ld.N60}</td>` : ''}
+                                            <td style="padding: 6px; border: 1px solid #ccc; text-align: center;">${ld.fs}</td>
+                                            <td style="padding: 6px; border: 1px solid #ccc; text-align: center;">${ld.As}</td>
+                                            <td style="padding: 6px; border: 1px solid #ccc; text-align: center;">${ld.Qs}</td>
+                                        </tr>
+                                    `).join('')}
+                                    <tr style="background: #e3f2fd; font-weight: 600;">
+                                        <td colspan="${constructionType === 'driven' ? 6 : 5}" style="padding: 8px; border: 1px solid #ccc; text-align: right;">합계 \\( Q_s = \\sum (f_s \\times A_s) \\)</td>
+                                        <td style="padding: 8px; border: 1px solid #ccc; text-align: center;">${r.Qs} kN</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- 선단지지력 상세 -->
+                            <h5 style="color: ${std.color}; margin-bottom: 12px;">2. 선단지지력 (End Bearing) 계산</h5>
+                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
+                                <strong>적용 공식:</strong> ${r.qpFormula}<br><br>
+                                <strong>계산:</strong><br>
+                                \\[ q_p = ${r.qp} \\text{ kPa} \\quad (N_{tip} = ${r.tipN}) \\]
+                                \\[ Q_p = q_p \\times A_p = ${r.qp} \\times ${Ap.toFixed(4)} = ${r.Qp} \\text{ kN} \\]
+                            </div>
+
+                            <!-- 최종 지지력 -->
+                            <h5 style="color: ${std.color}; margin-bottom: 12px;">3. 최종 지지력</h5>
+                            <div style="padding: 15px; background: #eceff1; border-radius: 6px; border-left: 4px solid ${std.color};">
+                                \\[ Q_u = Q_s + Q_p = ${r.Qs} + ${r.Qp} = ${r.Qu} \\text{ kN} \\]
+                                \\[ Q_a = \\frac{Q_u}{FS} = \\frac{${r.Qu}}{${FSv}} = ${r.Qa} \\text{ kN} \\]
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return { html, results };
+        }
+
+        // 주면마찰력 공식 텍스트 생성 (MathJax용)
+        function getSkinFrictionFormulaText(standard, pileType, soilType) {
+            const formulas = {
+                structural_foundation_2015: {
+                    pre_bored: {
+                        sand: '\\( f_s = 2.5N \\leq 125 \\text{ kPa} \\)',
+                        clay: '\\( f_s = 0.8 c_u \\leq 100 \\text{ kPa} \\)',
+                        rock: '\\( f_s = 0.65 P_a \\sqrt{q_u/P_a} \\)'
+                    },
+                    driven: {
+                        sand: '\\( f_s = 2.0 N_{60} \\leq 100 \\text{ kPa} \\)',
+                        clay: '\\( f_s = \\alpha \\cdot c_u \\)',
+                        rock: 'N/A'
+                    }
+                },
+                highway_bridge_2015: {
+                    pre_bored: {
+                        sand: '\\( f_s = 5N \\leq 150 \\text{ kPa} \\) (일본 기준)',
+                        clay: '\\( f_s = \\min(c_u, 10N, 100) \\text{ kPa} \\)',
+                        rock: '\\( f_s = 0.65 \\alpha_E P_a \\sqrt{q_u/P_a} \\)'
+                    },
+                    driven: {
+                        sand: '\\( f_s = 1.9N \\) (변위말뚝)',
+                        clay: '\\( f_s = \\alpha \\cdot S_u \\)',
+                        rock: 'N/A'
+                    }
+                },
+                building_foundation_2005: {
+                    pre_bored: {
+                        sand: '\\( f_s = 2.5N \\leq 125 \\text{ kPa} \\)',
+                        clay: '\\( f_s = 0.8 c_u \\leq 100 \\text{ kPa} \\)',
+                        rock: 'N/A'
+                    },
+                    driven: {
+                        sand: '\\( f_s = 2.0N \\leq 100 \\text{ kPa} \\)',
+                        clay: '\\( f_s = \\beta \\cdot c_u \\leq 100 \\text{ kPa} \\)',
+                        rock: 'N/A'
+                    }
+                }
+            };
+
+            return formulas[standard]?.[pileType]?.[soilType] || 'N/A';
+        }
+
+        // 선단지지력 공식 텍스트 생성 (MathJax용)
+        function getEndBearingFormulaText(standard, pileType, soilType, constructionMethod) {
+            if (standard === 'highway_bridge_2015' && pileType === 'pre_bored') {
+                const coeff = CONSTRUCTION_METHODS[constructionMethod]?.endBearingCoeff || 200;
+                const limit = CONSTRUCTION_METHODS[constructionMethod]?.endBearingLimit || 12000;
+                return `\\( q_p = ${coeff}N \\leq ${(limit/1000).toFixed(0)},000 \\text{ kPa} \\) (시공방법: ${CONSTRUCTION_METHODS[constructionMethod]?.name || constructionMethod})`;
+            }
+
+            const formulas = {
+                structural_foundation_2015: {
+                    pre_bored: {
+                        sand: '\\( q_p = 200N \\leq 12,000 \\text{ kPa} \\)',
+                        clay: '\\( q_p = 6c_u \\leq 12,000 \\text{ kPa} \\)',
+                        rock: '\\( q_p = 2.7 q_u \\times 1000 \\text{ kPa} \\)'
+                    },
+                    driven: {
+                        sand: '\\( q_p = 300N \\leq 15,000 \\text{ kPa} \\)',
+                        clay: '\\( q_p = 9c_u \\)',
+                        rock: 'N/A'
+                    }
+                },
+                highway_bridge_2015: {
+                    driven: {
+                        sand: '\\( q_p = 300N \\leq 15,000 \\text{ kPa} \\)',
+                        clay: '\\( q_p = 9 S_u \\)',
+                        rock: '\\( q_p = 2.5 q_u \\times 1000 \\text{ kPa} \\)'
+                    }
+                },
+                building_foundation_2005: {
+                    pre_bored: {
+                        sand: '\\( q_p = 200N_{tip} \\leq 12,000 \\text{ kPa} \\)',
+                        clay: '\\( q_p = 6c_u \\leq 12,000 \\text{ kPa} \\)',
+                        rock: 'N/A'
+                    },
+                    driven: {
+                        sand: '\\( q_p = 300N_{tip} \\leq 18,000 \\text{ kPa} \\)',
+                        clay: '\\( q_p = 6c_u \\leq 18,000 \\text{ kPa} \\)',
+                        rock: 'N/A'
+                    }
+                }
+            };
+
+            return formulas[standard]?.[pileType]?.[soilType] || 'N/A';
+        }
+
+        // 레거시 함수 (하위 호환성)
+        function showComparisonResults() {
+            showComparisonModal();
+        }
+
+        // ============================================================
+        // 공식 가이드 팝업 및 동적 공식 표시
+        // ============================================================
+
+        // 공식 가이드 팝업 표시
+        function showFormulaGuidePopup() {
+            const modal = document.createElement('div');
+            modal.id = 'formulaGuideModal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto;';
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 8px; max-width: 1100px; width: 95%; max-height: 90vh; overflow-y: auto; margin: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
+                    <div style="background: linear-gradient(135deg, #1a365d, #2d5a87); color: white; padding: 20px 25px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.3rem;">말뚝 지지력 공식 가이드</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 0.85rem; opacity: 0.9;">설계기준별 적용 공식 및 계수 안내</p>
+                        </div>
+                        <button onclick="this.closest('#formulaGuideModal').remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.5rem; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</button>
+                    </div>
+                    <div style="padding: 25px;">
+                        <!-- 주면마찰력 공식 비교 테이블 -->
+                        <h3 style="color: #1a365d; margin-bottom: 15px; border-bottom: 2px solid #1a365d; padding-bottom: 8px;">주면마찰력 (Skin Friction) 공식</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 30px;">
+                            <thead>
+                                <tr style="background: #1a365d; color: white;">
+                                    <th style="padding: 10px; border: 1px solid #ccc; text-align: left;">조건</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc; background: #1a365d;">구조물기초 (2015)</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc; background: #37474f;">도로교 (2015)</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc; background: #455a64;">건축기초 (2005)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">매입말뚝 - 사질토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 2.5N \\leq 125 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 5N \\leq 150 \\) kPa (일본)</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 2.5N \\leq 125 \\) kPa</td>
+                                </tr>
+                                <tr style="background: #f9f9f9;">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">매입말뚝 - 점성토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 0.8c_u \\leq 100 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = \\min(c_u, 10N, 100) \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 0.8c_u \\leq 100 \\) kPa</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">타입말뚝 - 사질토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 2.0N_{60} \\leq 100 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 1.9N \\) kPa (변위말뚝)</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = 2.0N \\leq 100 \\) kPa</td>
+                                </tr>
+                                <tr style="background: #f9f9f9;">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">타입말뚝 - 점성토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = \\alpha \\cdot c_u \\) (α차트)</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = \\alpha \\cdot S_u \\) (α차트)</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( f_s = \\beta \\cdot c_u \\leq 100 \\) kPa</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 선단지지력 공식 비교 테이블 -->
+                        <h3 style="color: #1a365d; margin-bottom: 15px; border-bottom: 2px solid #1a365d; padding-bottom: 8px;">선단지지력 (End Bearing) 공식</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 30px;">
+                            <thead>
+                                <tr style="background: #1a365d; color: white;">
+                                    <th style="padding: 10px; border: 1px solid #ccc; text-align: left;">조건</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc; background: #1a365d;">구조물기초 (2015)</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc; background: #37474f;">도로교 (2015)</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc; background: #455a64;">건축기초 (2005)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">매입말뚝 - 사질토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 200N \\leq 12,000 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">시공방법별 C값 적용</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 200N_{tip} \\leq 12,000 \\) kPa</td>
+                                </tr>
+                                <tr style="background: #f9f9f9;">
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">매입말뚝 - 점성토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 6c_u \\leq 12,000 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 6c_u \\leq 12,000 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 6c_u \\leq 12,000 \\) kPa</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">타입말뚝 - 사질토</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 300N \\leq 15,000 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 300N \\leq 15,000 \\) kPa</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">\\( q_p = 300N_{tip} \\leq 18,000 \\) kPa</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 도로교 시공방법별 계수 -->
+                        <h3 style="color: #37474f; margin-bottom: 15px; border-bottom: 2px solid #37474f; padding-bottom: 8px;">도로교 기준 - 시공방법별 선단지지력 계수</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 30px;">
+                            <thead>
+                                <tr style="background: #37474f; color: white;">
+                                    <th style="padding: 10px; border: 1px solid #ccc;">시공방법</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc;">선단지지력 계수 (C)</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc;">상한 (kPa)</th>
+                                    <th style="padding: 10px; border: 1px solid #ccc;">공식</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td style="padding: 8px; border: 1px solid #ddd;">타격공법 (Driven)</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">300</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">12,000</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 300N \\)</td></tr>
+                                <tr style="background: #f9f9f9;"><td style="padding: 8px; border: 1px solid #ddd;">시멘트페이스트주입공법</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">200</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">8,000</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 200N \\)</td></tr>
+                                <tr><td style="padding: 8px; border: 1px solid #ddd;">선굴착최종타격공법</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">300</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">12,000</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 300N \\)</td></tr>
+                                <tr style="background: #f9f9f9;"><td style="padding: 8px; border: 1px solid #ddd;">선굴착최종경타공법</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">250</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">10,000</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 250N \\)</td></tr>
+                                <tr><td style="padding: 8px; border: 1px solid #ddd;">선굴착확대고결공법</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">250</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">10,000</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 250N \\)</td></tr>
+                                <tr style="background: #f9f9f9;"><td style="padding: 8px; border: 1px solid #ddd;">시멘트밀크(모래층)</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">150</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">7,500</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 150N \\)</td></tr>
+                                <tr><td style="padding: 8px; border: 1px solid #ddd;">시멘트밀크(자갈층)</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">200</td><td style="padding: 8px; border: 1px solid #ddd; text-align: center;">10,000</td><td style="padding: 8px; border: 1px solid #ddd;">\\( q_p = 200N \\)</td></tr>
+                            </tbody>
+                        </table>
+
+                        <!-- N60 보정 설명 -->
+                        <h3 style="color: #546e7a; margin-bottom: 15px; border-bottom: 2px solid #546e7a; padding-bottom: 8px;">N₆₀ 해머효율 보정</h3>
+                        <div style="padding: 15px; background: #eceff1; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #546e7a;">
+                            <p style="margin: 0 0 10px 0;"><strong>적용 조건:</strong> 타입말뚝(Driven Pile) + 사질토 주면마찰력 계산 시</p>
+                            <p style="margin: 0 0 10px 0;"><strong>공식:</strong> \\( N_{60} = N \\times \\frac{E_m}{60} \\) (Em: 해머효율 %)</p>
+                            <p style="margin: 0; color: #666;"><strong>참고:</strong> 매입말뚝에는 N₆₀ 보정이 적용되지 않고 측정된 N값을 그대로 사용합니다.</p>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <button onclick="this.closest('#formulaGuideModal').remove()" style="padding: 12px 50px; background: linear-gradient(135deg, #1a365d, #2d5a87); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 600;">닫기</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // MathJax 렌더링
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typesetPromise([modal]).catch(err => console.log('MathJax error:', err));
+            }
+        }
+
+        // 사용자 정의 계수 토글
+        function toggleCustomCoeffs() {
+            const checkbox = document.getElementById('useCustomCoeffs');
+            const panel = document.getElementById('customCoeffsPanel');
+            if (checkbox && panel) {
+                if (checkbox.checked) {
+                    panel.style.opacity = '1';
+                    panel.style.pointerEvents = 'auto';
+
+                    // 현재 설계기준에 따른 기본값 설정
+                    const standard = getCurrentDesignStandard();
+                    const constructionMethod = getCurrentConstructionMethod();
+                    const pileType = CONSTRUCTION_METHODS[constructionMethod]?.type || 'pre_bored';
+
+                    const betaSandEl = document.getElementById('betaSand');
+                    const betaClayEl = document.getElementById('betaClay');
+                    const endBearingCoeffEl = document.getElementById('endBearingCoefficient');
+
+                    // 설계기준별 기본값 설정
+                    if (standard === 'structural_foundation_2015') {
+                        if (pileType === 'driven') {
+                            if (betaSandEl) betaSandEl.value = '2.0';  // 2.0N₆₀
+                        } else {
+                            if (betaSandEl) betaSandEl.value = '2.5';  // 2.5N
+                        }
+                        if (betaClayEl) betaClayEl.value = '0.8';
+                        if (endBearingCoeffEl) endBearingCoeffEl.value = pileType === 'driven' ? '300' : '200';
+                    } else if (standard === 'highway_bridge_2015') {
+                        if (pileType === 'driven') {
+                            if (betaSandEl) betaSandEl.value = '1.9';  // 1.9N (변위말뚝)
+                        } else {
+                            if (betaSandEl) betaSandEl.value = '5.0';  // 5N
+                        }
+                        if (betaClayEl) betaClayEl.value = '1.0';  // min(cu, 10N)
+                        // 시공방법별 선단지지력 계수
+                        const methodInfo = CONSTRUCTION_METHODS[constructionMethod];
+                        if (endBearingCoeffEl) endBearingCoeffEl.value = methodInfo?.endBearingCoeff || '200';
+                    } else {  // building_foundation_2005
+                        if (betaSandEl) betaSandEl.value = '2.5';
+                        if (betaClayEl) betaClayEl.value = '0.8';
+                        if (endBearingCoeffEl) endBearingCoeffEl.value = pileType === 'driven' ? '300' : '200';
+                    }
+                } else {
+                    panel.style.opacity = '0.5';
+                    panel.style.pointerEvents = 'none';
+                }
+            }
+        }
+
+        // 현재 공식 표시 업데이트 (설계기준 변경 시 호출)
+        function updateCurrentFormulaDisplay() {
+            const standard = getCurrentDesignStandard();
+            const constructionMethod = getCurrentConstructionMethod();
+            const constructionType = CONSTRUCTION_METHODS[constructionMethod]?.type || 'pre_bored';
+
+            const badgeEl = document.getElementById('currentStandardBadge');
+            const fsSandEl = document.getElementById('formulaDisplayFsSand');
+            const fsClayEl = document.getElementById('formulaDisplayFsClay');
+            const qpEl = document.getElementById('formulaDisplayQp');
+            const nLimitEl = document.getElementById('formulaDisplayNLimit');
+
+            if (!badgeEl) return;
+
+            // 기준별 배지 색상
+            const badgeColors = {
+                'structural_foundation_2015': '#1976d2',
+                'highway_bridge_2015': '#37474f',
+                'building_foundation_2005': '#7b1fa2'
+            };
+            const badgeNames = {
+                'structural_foundation_2015': '구조물기초',
+                'highway_bridge_2015': '도로교',
+                'building_foundation_2005': '건축기초'
+            };
+
+            badgeEl.style.background = badgeColors[standard] || '#1976d2';
+            badgeEl.textContent = badgeNames[standard] || '구조물기초';
+
+            // 공식 표시 업데이트
+            const formulas = {
+                structural_foundation_2015: {
+                    pre_bored: {
+                        sand: 'fs = 2.5N (≤125 kPa)',
+                        clay: 'fs = 0.8cu (≤100 kPa)',
+                        qp: 'qp = 200N (≤12,000 kPa)',
+                        nLimit: 'N ≤ 50'
+                    },
+                    driven: {
+                        sand: 'fs = 2.0N60 (≤100 kPa)',
+                        clay: 'fs = α·cu (α차트)',
+                        qp: 'qp = 300N (≤15,000 kPa)',
+                        nLimit: 'N ≤ 50, N60 적용'
+                    }
+                },
+                highway_bridge_2015: {
+                    pre_bored: {
+                        sand: 'fs = 5N (≤150 kPa) [일본기준]',
+                        clay: 'fs = min(cu, 10N, 100) kPa',
+                        qp: `qp = ${CONSTRUCTION_METHODS[constructionMethod]?.endBearingCoeff || 200}N (시공방법별)`,
+                        nLimit: 'N ≤ 40'
+                    },
+                    driven: {
+                        sand: 'fs = 1.9N (변위말뚝)',
+                        clay: 'fs = α·Su (α차트)',
+                        qp: 'qp = 300N (≤15,000 kPa)',
+                        nLimit: 'N ≤ 40'
+                    }
+                },
+                building_foundation_2005: {
+                    pre_bored: {
+                        sand: 'fs = 2.5N (≤125 kPa)',
+                        clay: 'fs = 0.8cu (≤100 kPa)',
+                        qp: 'qp = 200N (≤12,000 kPa)',
+                        nLimit: 'N ≤ 60'
+                    },
+                    driven: {
+                        sand: 'fs = 2.0N (≤100 kPa)',
+                        clay: 'fs = β·cu (≤100 kPa)',
+                        qp: 'qp = 300N (≤18,000 kPa)',
+                        nLimit: 'N ≤ 60'
+                    }
+                }
+            };
+
+            const f = formulas[standard]?.[constructionType];
+            if (f) {
+                if (fsSandEl) fsSandEl.textContent = f.sand;
+                if (fsClayEl) fsClayEl.textContent = f.clay;
+                if (qpEl) qpEl.textContent = f.qp;
+                if (nLimitEl) nLimitEl.textContent = f.nLimit;
+            }
+        }
+
+        // ============================================================
         // 토질별 단위중량 Ontology (기본값)
         // ============================================================
         const SOIL_UNIT_WEIGHT = {
@@ -597,29 +1850,52 @@
         }
 
         function getCurrentPile() {
-            const pileType = document.getElementById('pileTypeSelector').value;
-            
+            const pileTypeEl = document.getElementById('pileTypeSelector');
+            const pileType = pileTypeEl?.value || 'phc';
+
             if (pileType === 'phc') {
-                const pileSpec = document.getElementById('phcPileType').value;
+                const pileSpecEl = document.getElementById('phcPileType');
+                const pileSpec = pileSpecEl?.value || '500-B';
+                const pileData = PHC_PILES[pileSpec];
+
+                if (!pileData) {
+                    // 기본값 반환 (500-B 규격)
+                    const defaultPile = PHC_PILES['500-B'] || {
+                        diameter: 0.5,
+                        thickness: 0.08,
+                        area: 0.1068,
+                        crossArea: 0.1963,
+                        allowable: 1500,
+                        I: 0.00234,
+                        perimeter: 1.571
+                    };
+                    return { type: 'phc', spec: '500-B', ...defaultPile };
+                }
+
                 return {
                     type: 'phc',
                     spec: pileSpec,
-                    ...PHC_PILES[pileSpec]
+                    ...pileData
                 };
             } else {
-                const diameter = parseFloat(document.getElementById('steelDiameter').value);
-                const thickness = parseFloat(document.getElementById('steelThickness').value);
-                const material = document.getElementById('steelMaterial').value;
-                const coating = document.getElementById('steelCoating').value;
-                
-                const coatingReduction = STEEL_PIPE_SPECS.coatings[coating].thicknessReduction;
+                const diameterEl = document.getElementById('steelDiameter');
+                const thicknessEl = document.getElementById('steelThickness');
+                const materialEl = document.getElementById('steelMaterial');
+                const coatingEl = document.getElementById('steelCoating');
+
+                const diameter = parseFloat(diameterEl?.value) || 0.508;
+                const thickness = parseFloat(thicknessEl?.value) || 0.0127;
+                const material = materialEl?.value || 'SKK400';
+                const coating = coatingEl?.value || 'none';
+
+                const coatingReduction = STEEL_PIPE_SPECS?.coatings?.[coating]?.thicknessReduction || 0;
                 const effectiveThickness = thickness - coatingReduction;
-                
+
                 const props = calculateSteelPipeProperties(diameter, effectiveThickness, material);
-                
+
                 return {
                     type: 'steel',
-                    spec: `Ø${diameter}×${thickness}`,
+                    spec: `Ø${(diameter*1000).toFixed(0)}×${(thickness*1000).toFixed(1)}`,
                     material: material,
                     coating: coating,
                     ...props
@@ -777,8 +2053,8 @@
             // 업로드 상태 표시
             const uploadStatus = document.getElementById('uploadStatus');
             if (uploadStatus) {
-                uploadStatus.style.background = '#fff3e0';
-                uploadStatus.style.color = '#e65100';
+                uploadStatus.style.background = '#f5f5f5';
+                uploadStatus.style.color = '#37474f';
                 uploadStatus.innerHTML = '⏳ 파일 로딩 중...';
             }
 
@@ -812,8 +2088,8 @@
                     // 업로드 성공 표시
                     if (uploadStatus) {
                         const boreholeCount = boreholeData ? boreholeData.length : 0;
-                        uploadStatus.style.background = '#e8f5e9';
-                        uploadStatus.style.color = '#2e7d32';
+                        uploadStatus.style.background = '#eceff1';
+                        uploadStatus.style.color = '#1a5f7a';
                         uploadStatus.innerHTML = `✅ ${file.name}<br><small>${boreholeCount}개 시추공 로드됨</small>`;
                     }
                 } catch (error) {
@@ -1169,7 +2445,12 @@
             try {
                 const pile = getCurrentPile();
                 const D = pile.diameter;
-                
+
+                // 설계기준 및 시공방법 (함수 상단에서 정의)
+                const designStandard = getCurrentDesignStandard();
+                const constructionMethod = getCurrentConstructionMethod();
+                const constructionType = CONSTRUCTION_METHODS[constructionMethod]?.type || 'pre_bored';
+
                 // Get original ground elevation and target elevation
                 const originalElevation = getGroundSurfaceElevation(borehole.metadata);
                 if (originalElevation === null || isNaN(originalElevation)) {
@@ -1362,12 +2643,10 @@
                         const fillThickness = fillHeight;
                         const fillAs = Math.PI * D * fillThickness;
 
-                        // 성토재 주면마찰응력 계산 (입력 검토 탭에서 설정한 계수 사용)
-                        const method = document.getElementById('constructionMethod').value;
-                        const methodFactor = method === 'driven' ? 1.0 : 0.7;
-                        // 성토재는 사질토 계수 적용 (입력 검토 탭에서 설정한 값)
-                        const betaSandForFill = parseFloat(document.getElementById('betaSand')?.value) || 2.0;
-                        let fillFs = betaSandForFill * fillN * methodFactor;
+                        // 성토재 주면마찰응력 계산 - 설계기준별 공식 적용
+                        // constructionMethod와 constructionType은 함수 상단에서 이미 정의됨
+                        const fillN60 = calculateN60(fillN);
+                        const fillFs = calculateSkinFriction(designStandard, constructionType, 'sand', fillN, fillN60, 0, fillHeight/2);
 
                         const fillQs = fillFs * fillAs;
                         Qs += fillQs;
@@ -1478,15 +2757,10 @@
                         console.log(`[계산] ${borehole.hole_no} 깊이${midDepth.toFixed(1)}m - ${paramSource}, N=${N}, cu=${customCu || '없음'}`);
                     }
 
-                    // 주면마찰응력 계산 (구조물기초설계기준해설 p.302)
-                    // 사질토: Qs = βs × Ns × As (βs = 2.0)
-                    // 점성토: Qs = βc × Nc × Ac (βc = 6.25)
-                    // 항상 DOM에서 최신 값을 읽어옴 (입력 검토 탭에서 설정한 값)
-                    const betaSand = parseFloat(document.getElementById('betaSand')?.value) || 2.0;
-                    const betaClay = parseFloat(document.getElementById('betaClay')?.value) || 6.25;
-
+                    // 주면마찰응력 계산 - 설계기준별 공식 적용
                     // N값 상한 50 적용
                     const cappedN = Math.min(N, 50);
+                    const N60 = calculateN60(cappedN);  // 해머효율 보정
 
                     // 토층 분류 판정 - 토질 분류 엔진 사용
                     const classResult = classifySoilBehavior(layerName);
@@ -1498,28 +2772,28 @@
                         actualBehavior = soilLayerStatistics[layerName].behavior;
                     }
 
+                    // 설계기준별 주면마찰력 계산
                     let fs = 0;
                     let soilType = '';
+                    let fsFormula = '';
+
+                    // 토질 타입 결정
                     if (actualBehavior === 'cohesive') {
-                        // 점성토: fs = βc × N (구조물기초설계기준해설)
-                        fs = betaClay * cappedN;
                         soilType = 'clay';
                     } else if (actualBehavior === 'sandy') {
-                        // 사질토: fs = βs × N (구조물기초설계기준해설)
-                        fs = betaSand * cappedN;
                         soilType = 'sand';
                     } else if (actualBehavior === 'rock') {
-                        // 암반 - 주면마찰력 별도 기준 (여기서는 사질토 기준 적용)
-                        fs = betaSand * cappedN;
                         soilType = 'rock';
                     } else {
-                        // 알 수 없는 경우 - 보수적으로 점성토 계수 적용
-                        fs = betaClay * cappedN;
-                        soilType = 'unknown';
+                        soilType = 'sand';  // 기본값
                     }
 
-                    // 시공방법 보정계수 적용
-                    fs *= methodFactor;
+                    // cu 값 가져오기 (점성토용)
+                    const cu = customCu || (soilLayerStatistics[layerName]?.cu) || (6.25 * cappedN);  // 기본: Terzaghi 상관식
+
+                    // 설계기준별 공식 적용
+                    fs = calculateSkinFriction(designStandard, constructionType, soilType, cappedN, N60, cu, midDepth);
+                    fsFormula = getSkinFrictionFormula(designStandard, constructionType, soilType);
 
                     // 주면 면적 및 주면마찰력
                     const As = Math.PI * D * segmentThickness;
@@ -1545,9 +2819,11 @@
                     skinFrictionDetails.push({
                         depth: `${segmentFrom.toFixed(1)}-${segmentTo.toFixed(1)}`,
                         layer: layerName,
-                        soilType: soilType,  // 'sand' or 'clay'
+                        soilType: soilType,  // 'sand', 'clay', or 'rock'
                         thickness: segmentThickness,
                         N: cappedN,
+                        N60: N60,  // N60 보정값 추가
+                        cu: cu,    // 점성토 비배수전단강도 추가
                         fs: fs,
                         As: As,
                         Qs: segmentQs,
@@ -1579,19 +2855,34 @@
                 }
                 const N2 = N2_count > 0 ? N2_sum / N2_count : N1;
 
-                // 설계 N값: (N1 + N2) / 2, 상한 50
-                const tipN = Math.min((N1 + N2) / 2, 50);
+                // 설계 N값: (N1 + N2) / 2, 상한 50 (건축기준은 60)
+                const tipN = Math.min((N1 + N2) / 2, designStandard === 'building_foundation_2005' ? 60 : 50);
 
-                // 선단지지력 계수 - 입력 검토 탭에서 설정한 값 사용 (endBearingAlpha)
-                const endBearingCoeff = parseFloat(document.getElementById('endBearingAlpha')?.value) ||
-                                        parseFloat(document.getElementById('endBearingCoefficient')?.value) || 250;
-                const qp = endBearingCoeff * tipN; // kPa (구조물기초설계기준해설: α × N)
+                // 지지층 토질 타입 결정
+                const bearingLayerName = bearingLayer?.soil_name || '';
+                const bearingClassResult = classifySoilBehavior(bearingLayerName);
+                let bearingSoilType = 'sand';  // 기본값
+                if (bearingClassResult.behavior === 'cohesive') {
+                    bearingSoilType = 'clay';
+                } else if (bearingClassResult.behavior === 'rock' || bearingLayerName.includes('암')) {
+                    bearingSoilType = 'rock';
+                }
+
+                // 지지층 cu 값 (점성토인 경우)
+                const bearingCu = soilLayerStatistics[bearingLayerName]?.cu || (6.25 * tipN);
+
+                // 선단지지력 계산 - 설계기준별 공식 적용
+                const qp = calculateEndBearing(designStandard, constructionType, bearingSoilType, tipN, bearingCu, constructionMethod);
                 const Qp = qp * Ap;
+
+                // 적용된 선단지지력 공식 정보
+                const qpFormula = getEndBearingFormula(designStandard, constructionMethod, constructionType, bearingSoilType);
 
                 // 디버깅: 선단지지력 계산 정보
                 console.log(`[선단지지력] ${borehole.hole_no}: 선단깊이=${pileTipDepth.toFixed(2)}m, 선단지지고=EL.${pileTipLevel.toFixed(2)}m`);
-                console.log(`[선단지지력] ${borehole.hole_no}: N1=${N1.toFixed(1)}, N2=${N2.toFixed(1)}, N=(N1+N2)/2=${tipN.toFixed(1)}, α=${endBearingCoeff}`);
-                console.log(`[선단지지력] ${borehole.hole_no}: 지지층=${bearingLayer?.soil_name || '미확인'}, qp=${qp.toFixed(0)}kPa, Qp=${Qp.toFixed(1)}kN`);
+                console.log(`[선단지지력] ${borehole.hole_no}: N1=${N1.toFixed(1)}, N2=${N2.toFixed(1)}, N=(N1+N2)/2=${tipN.toFixed(1)}`);
+                console.log(`[선단지지력] ${borehole.hole_no}: 설계기준=${DESIGN_STANDARDS[designStandard].shortName}, 공식=${qpFormula}`);
+                console.log(`[선단지지력] ${borehole.hole_no}: 지지층=${bearingLayerName}, 토질=${bearingSoilType}, qp=${qp.toFixed(0)}kPa, Qp=${Qp.toFixed(1)}kN`);
                 
                 // Ultimate and allowable capacity - 전역 설계 파라미터 사용
                 const Qu = Qs + Qp;
@@ -1632,7 +2923,10 @@
                 // 2. 이음 감소율 (μ2)
                 const spliceMethod = document.getElementById('spliceMethod').value;
                 const PILE_UNIT_LENGTH = 15.0; // 말뚝 한 본당 길이 (m)
-                const numberOfSplices = Math.floor(pileLength / PILE_UNIT_LENGTH); // 이음 개소 수
+                // 이음 개소 수 = 필요 말뚝 본 수 - 1
+                // 예: 15m 이하 = 1본 = 0 이음, 16~30m = 2본 = 1 이음, 31~45m = 3본 = 2 이음
+                const numberOfPiles = Math.ceil(pileLength / PILE_UNIT_LENGTH);
+                const numberOfSplices = Math.max(0, numberOfPiles - 1); // 이음 개소 수
 
                 let mu2 = 0.0; // 이음 감소율 (%)
                 let spliceDetails = []; // 이음별 감소율 상세
@@ -1768,7 +3062,13 @@
                     pileLength: pileLength || 0,
                     pileTipLevel: pileTipLevel || 0,
                     pileTipDepth: pileTipDepth || 0,
-                    // 선단 N값 상세 (구조물기초설계기준해설)
+                    // 설계기준 및 시공방법 정보
+                    designStandard: designStandard,
+                    designStandardName: DESIGN_STANDARDS[designStandard]?.shortName || designStandard,
+                    constructionMethod: constructionMethod,
+                    constructionMethodName: CONSTRUCTION_METHODS[constructionMethod]?.name || constructionMethod,
+                    qpFormula: qpFormula,
+                    // 선단 N값 상세
                     N1: N1 || 0,
                     N2: N2 || 0,
                     tipN: tipN || 0,
@@ -1776,7 +3076,6 @@
                     Qs: Qs || 0,
                     Qp: Qp || 0,
                     Qu: Qu || 0,
-                    endBearingCoeff: endBearingCoeff,
                     Qa: Qa || 0,
                     Qa_soil: Qa_soil || 0,
                     Qa_material: Qa_material || 0,
@@ -2501,7 +3800,7 @@
                             border-radius: 12px;
                             color: #c62828;
                         ">
-                            <div style="font-size: 40px; margin-bottom: 10px;">📊</div>
+                            <div style="font-size: 40px; margin-bottom: 10px; font-weight: bold;">!</div>
                             <h4 style="margin: 0 0 10px 0;">말뚝 지지력 산정 불가</h4>
                             <p style="margin: 0; color: #888; font-size: 0.9rem;">
                                 ${result.invalidReason || '말뚝 길이가 0 이하로 분석 결과를 표시할 수 없습니다.'}
@@ -2518,7 +3817,7 @@
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="9" style="text-align: center; color: #c62828; padding: 40px; background: #fff5f5;">
-                            <strong>⚠️ 말뚝 지지력 산정 불가</strong><br>
+                            <strong>말뚝 지지력 산정 불가</strong><br>
                             <span style="color: #888; font-size: 0.9rem;">${result.invalidReason || '말뚝 길이가 0 이하입니다.'}</span>
                         </td>
                     </tr>
@@ -2943,7 +4242,7 @@
                                 label: '주면마찰력 Qs (kN)',
                                 data: qsValues,
                                 backgroundColor: 'rgba(46, 125, 50, 0.75)',
-                                borderColor: '#2e7d32',
+                                borderColor: '#1a5f7a',
                                 borderWidth: 1
                             },
                             {
@@ -3269,7 +4568,7 @@
                                 'rgba(44, 78, 126, 0.7)',
                                 'rgba(46, 125, 50, 0.7)'
                             ],
-                            borderColor: ['#2c4e7e', '#2e7d32'],
+                            borderColor: ['#2c4e7e', '#1a5f7a'],
                             borderWidth: 2
                         }]
                     },
@@ -3547,9 +4846,12 @@
 
         function updateSummaryCards() {
             if (!calculationResults || calculationResults.length === 0) return;
-            
-            // Average pile length
-            const avgLength = calculationResults.reduce((sum, r) => sum + (r.pileLength || 0), 0) / calculationResults.length;
+
+            // Average pile length (말뚝이 필요한 시추공만 - 양수인 경우만)
+            const validPileLengths = calculationResults.filter(r => r.pileLength > 0);
+            const avgLength = validPileLengths.length > 0
+                ? validPileLengths.reduce((sum, r) => sum + r.pileLength, 0) / validPileLengths.length
+                : 0;
             document.getElementById('avgPileLength').textContent = avgLength.toFixed(1);
             
             // Average capacity
@@ -3943,7 +5245,7 @@
                     ctx.stroke();
 
                     ctx.font = '9px Arial';
-                    ctx.fillStyle = '#2e7d32';
+                    ctx.fillStyle = '#1a5f7a';
                     ctx.textAlign = 'center';
                     ctx.fillText(cap.toString(), x, startY - 5);
                 });
@@ -3987,7 +5289,7 @@
 
                     // 누적 지지력 선
                     ctx.beginPath();
-                    ctx.strokeStyle = '#2e7d32';
+                    ctx.strokeStyle = '#1a5f7a';
                     ctx.lineWidth = 2;
                     ctx.moveTo(capacityX, startY);
                     capacityPoints.forEach(point => {
@@ -4004,7 +5306,7 @@
 
                         ctx.beginPath();
                         ctx.arc(x, y, 4, 0, Math.PI * 2);
-                        ctx.fillStyle = point.type === 'tip' ? '#c62828' : '#2e7d32';
+                        ctx.fillStyle = point.type === 'tip' ? '#c62828' : '#1a5f7a';
                         ctx.fill();
                     });
                 }
@@ -4049,7 +5351,7 @@
                 }
 
                 // 계획고(작업면) 라인
-                ctx.strokeStyle = '#e65100';
+                ctx.strokeStyle = '#37474f';
                 ctx.lineWidth = 3;
                 ctx.setLineDash([]);
                 ctx.beginPath();
@@ -4058,7 +5360,7 @@
                 ctx.stroke();
 
                 // 계획고 라벨 (좌측)
-                ctx.fillStyle = '#e65100';
+                ctx.fillStyle = '#37474f';
                 ctx.font = 'bold 11px Arial';
                 ctx.textAlign = 'right';
                 ctx.fillText(`계획고 EL.${targetElevation.toFixed(2)}m`, boreholeX - 35, workSurfaceY + 4);
@@ -4201,7 +5503,7 @@
 
                     // 물방울 아이콘
                     ctx.font = '14px Arial';
-                    ctx.fillText('💧', boreholeX - 35, gwlY + 5);
+                    ctx.fillText('GWL', boreholeX - 35, gwlY + 5);
 
                     // 지하수위 라벨
                     ctx.font = '10px Arial';
@@ -4218,7 +5520,7 @@
                 const panelX = capacityX + layout.capacityColumn.width + 20;
                 const panelY = startY;
                 const panelWidth = 200;
-                const panelHeight = 280;
+                const panelHeight = 360;  // 높이 증가 (설계조건 추가)
 
                 // 패널 배경
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
@@ -4235,18 +5537,80 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('설계 요약', panelX + panelWidth/2, panelY + 18);
 
-                // 정보 항목
+                // ============================================================
+                // 설계 조건 표시 (설계기준, 시공방법, N60 보정)
+                // ============================================================
+                let itemY = panelY + 45;
+                const designStandard = result.designStandard || getCurrentDesignStandard();
+                const constructionMethod = result.constructionMethod || getCurrentConstructionMethod();
+                const standardShortName = result.designStandardName || DESIGN_STANDARDS[designStandard]?.shortName || designStandard;
+                const methodName = result.constructionMethodName || CONSTRUCTION_METHODS[constructionMethod]?.name || constructionMethod;
+                const pileType = CONSTRUCTION_METHODS[constructionMethod]?.type || 'pre_bored';
+                const isN60Applicable = pileType === 'driven' &&
+                    (designStandard === 'structural_foundation_2015' || designStandard === 'highway_bridge_2015');
+
+                // 설계기준
+                ctx.font = '9px Arial';
+                ctx.fillStyle = '#888';
+                ctx.textAlign = 'left';
+                ctx.fillText('설계기준', panelX + 10, itemY);
+                ctx.font = 'bold 10px Arial';
+                ctx.fillStyle = '#1565c0';
+                ctx.textAlign = 'right';
+                ctx.fillText(standardShortName, panelX + panelWidth - 10, itemY);
+
+                itemY += 18;
+
+                // 시공방법
+                ctx.font = '9px Arial';
+                ctx.fillStyle = '#888';
+                ctx.textAlign = 'left';
+                ctx.fillText('시공방법', panelX + 10, itemY);
+                ctx.font = 'bold 10px Arial';
+                ctx.fillStyle = pileType === 'driven' ? '#1a5f7a' : '#37474f';
+                ctx.textAlign = 'right';
+                ctx.fillText(`${methodName} (${pileType === 'driven' ? '타입' : '매입'})`, panelX + panelWidth - 10, itemY);
+
+                itemY += 18;
+
+                // N60 보정 여부
+                ctx.font = '9px Arial';
+                ctx.fillStyle = '#888';
+                ctx.textAlign = 'left';
+                ctx.fillText('N₆₀ 보정', panelX + 10, itemY);
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'right';
+                if (isN60Applicable) {
+                    const hammerEff = globalDesignParameters.hammerEfficiency || 60;
+                    ctx.fillStyle = '#1976d2';
+                    ctx.fillText(`적용 (해머효율 ${hammerEff}%)`, panelX + panelWidth - 10, itemY);
+                } else {
+                    ctx.fillStyle = '#9e9e9e';
+                    ctx.fillText('미적용', panelX + panelWidth - 10, itemY);
+                }
+
+                // 구분선
+                itemY += 12;
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(panelX + 10, itemY);
+                ctx.lineTo(panelX + panelWidth - 10, itemY);
+                ctx.stroke();
+
+                itemY += 15;
+
+                // 지지력 정보 항목
                 const items = [
-                    { label: '허용지지력 (Qa)', value: `${(result.Qa || 0).toFixed(0)} kN`, color: '#2e7d32' },
+                    { label: '허용지지력 (Qa)', value: `${(result.Qa || 0).toFixed(0)} kN`, color: '#1a5f7a' },
                     { label: '극한지지력 (Qu)', value: `${(result.Qu || 0).toFixed(0)} kN`, color: '#1565c0' },
                     { label: '주면마찰력 (Qs)', value: `${(result.Qs || 0).toFixed(0)} kN`, color: '#1976d2' },
                     { label: '선단지지력 (Qp)', value: `${(result.Qp || 0).toFixed(0)} kN`, color: '#c62828' },
-                    { label: '총 침하량', value: `${(result.St || 0).toFixed(1)} mm`, color: result.settlementCheck === 'PASS' ? '#2e7d32' : '#c62828' },
+                    { label: '총 침하량', value: `${(result.St || 0).toFixed(1)} mm`, color: result.settlementCheck === 'PASS' ? '#1a5f7a' : '#c62828' },
                     { label: '수평지지력 (Ha)', value: `${(result.horizontalCapacity?.Ha_final || 0).toFixed(0)} kN`, color: '#7b1fa2' },
                     { label: '인발저항력 (Q_pull)', value: `${(result.upliftCapacity?.Q_pull || 0).toFixed(0)} kN`, color: '#00838f' }
                 ];
 
-                let itemY = panelY + 45;
                 items.forEach(item => {
                     ctx.font = '10px Arial';
                     ctx.fillStyle = '#666';
@@ -4258,7 +5622,7 @@
                     ctx.textAlign = 'right';
                     ctx.fillText(item.value, panelX + panelWidth - 10, itemY);
 
-                    itemY += 32;
+                    itemY += 28;
                 });
 
                 // 안전율 표시
@@ -4291,11 +5655,11 @@
             ctx.fillText('범례:', 20, legendY + 5);
 
             const legends = [
-                { color: '#e65100', label: '계획고', type: 'line' },
+                { color: '#37474f', label: '계획고', type: 'line' },
                 { color: '#c62828', label: '선단지지고', type: 'dash' },
                 { color: '#0277bd', label: '지하수위', type: 'dash' },
                 { color: '#1976d2', label: 'N값', type: 'circle' },
-                { color: '#2e7d32', label: '누적지지력', type: 'fill' },
+                { color: '#1a5f7a', label: '누적지지력', type: 'fill' },
                 { color: '#c62828', label: '지지층(N≥50)', type: 'box' }
             ];
 
@@ -4810,7 +6174,7 @@
                     capacityGroup.appendChild(gridLine);
 
                     const label = createSVGElement('text', {
-                        x: x, y: -8, fill: '#2e7d32', 'font-size': '9', 'text-anchor': 'middle'
+                        x: x, y: -8, fill: '#1a5f7a', 'font-size': '9', 'text-anchor': 'middle'
                     });
                     label.textContent = cap.toString();
                     capacityGroup.appendChild(label);
@@ -4859,7 +6223,7 @@
                     }).join(' ');
 
                     const capLine = createSVGElement('path', {
-                        d: lineD, fill: 'none', stroke: '#2e7d32', 'stroke-width': 2
+                        d: lineD, fill: 'none', stroke: '#1a5f7a', 'stroke-width': 2
                     });
                     capacityGroup.appendChild(capLine);
 
@@ -4872,7 +6236,7 @@
 
                         const point = createSVGElement('circle', {
                             cx: x, cy: y, r: 4,
-                            fill: isTip ? '#c62828' : '#2e7d32'
+                            fill: isTip ? '#c62828' : '#1a5f7a'
                         });
                         capacityGroup.appendChild(point);
                     });
@@ -4906,14 +6270,14 @@
                 const planLine = createSVGElement('line', {
                     x1: boreholeX - 40, y1: workSurfaceY,
                     x2: boreholeX + layout.columns.borehole.width + 50, y2: workSurfaceY,
-                    stroke: '#e65100', 'stroke-width': 3
+                    stroke: '#37474f', 'stroke-width': 3
                 });
                 mainGroup.appendChild(planLine);
 
                 // 계획고 라벨
                 const planLabel = createSVGElement('text', {
                     x: boreholeX - 45, y: workSurfaceY + 4,
-                    fill: '#e65100', 'font-size': '11', 'font-weight': 'bold', 'text-anchor': 'end'
+                    fill: '#37474f', 'font-size': '11', 'font-weight': 'bold', 'text-anchor': 'end'
                 });
                 planLabel.textContent = `계획고 EL.${targetElevation.toFixed(2)}m`;
                 mainGroup.appendChild(planLabel);
@@ -5040,7 +6404,7 @@
                             x: boreholeX - 55, y: gwlY + 4,
                             fill: '#0277bd', 'font-size': '10', 'text-anchor': 'end'
                         });
-                        gwlLabel.textContent = `💧 GWL EL.${gwlElevation.toFixed(1)}m`;
+                        gwlLabel.textContent = `GWL EL.${gwlElevation.toFixed(1)}m`;
                         mainGroup.appendChild(gwlLabel);
                     }
                 }
@@ -5080,11 +6444,11 @@
 
                 // 정보 항목
                 const items = [
-                    { label: '허용지지력 (Qa)', value: `${(result.Qa || 0).toFixed(0)} kN`, color: '#2e7d32' },
+                    { label: '허용지지력 (Qa)', value: `${(result.Qa || 0).toFixed(0)} kN`, color: '#1a5f7a' },
                     { label: '극한지지력 (Qu)', value: `${(result.Qu || 0).toFixed(0)} kN`, color: '#1565c0' },
                     { label: '주면마찰력 (Qs)', value: `${(result.Qs || 0).toFixed(0)} kN`, color: '#1976d2' },
                     { label: '선단지지력 (Qp)', value: `${(result.Qp || 0).toFixed(0)} kN`, color: '#c62828' },
-                    { label: '총 침하량', value: `${(result.St || 0).toFixed(2)} mm`, color: result.settlementCheck === 'PASS' ? '#2e7d32' : '#c62828' },
+                    { label: '총 침하량', value: `${(result.St || 0).toFixed(2)} mm`, color: result.settlementCheck === 'PASS' ? '#1a5f7a' : '#c62828' },
                     { label: '수평지지력 (Ha)', value: `${(result.horizontalCapacity?.Ha_final || 0).toFixed(0)} kN`, color: '#7b1fa2' },
                     { label: '인발저항력 (Q_pull)', value: `${(result.upliftCapacity?.Q_pull || 0).toFixed(0)} kN`, color: '#00838f' }
                 ];
@@ -5144,11 +6508,11 @@
             svg.appendChild(legendTitle);
 
             const legends = [
-                { color: '#e65100', label: '계획고', type: 'line' },
+                { color: '#37474f', label: '계획고', type: 'line' },
                 { color: '#c62828', label: '선단지지고', type: 'dash' },
                 { color: '#0277bd', label: '지하수위', type: 'dash' },
                 { color: '#1976d2', label: 'N값', type: 'circle' },
-                { color: '#2e7d32', label: '누적지지력', type: 'area' },
+                { color: '#1a5f7a', label: '누적지지력', type: 'area' },
                 { color: '#c62828', label: '지지층(N≥50)', type: 'box' }
             ];
 
@@ -5595,7 +6959,7 @@
                     type: 'surface', name: '지표면',
                     colorscale: [[0,'#A08060'],[0.5,'#C4A77D'],[1,'#DEB887']],
                     opacity: clipCenter ? 0.9 : 0.75, showscale: false,
-                    contours: { z: { show: showContours, color: 'rgba(0,0,0,0.2)', width: 1 } },
+                    contours: { z: { show: showContours, color: 'rgba(0,0,0,0.2)', width: 1, size: 0.5 } },
                     hovertemplate: '<b>지표면</b><br>표고: EL.%{z:.2f}m<extra></extra>'
                 });
             }
@@ -5621,7 +6985,7 @@
                     type: 'surface', name: '풍화암 상단',
                     colorscale: [[0,'#CD853F'],[0.5,'#D2691E'],[1,'#B8860B']],
                     opacity: clipCenter ? 0.85 : 0.7, showscale: false,
-                    contours: { z: { show: showContours, color: 'rgba(139,69,19,0.3)', width: 1 } },
+                    contours: { z: { show: showContours, color: 'rgba(139,69,19,0.3)', width: 1, size: 0.5 } },
                     hovertemplate: '<b>풍화암 상단</b><br>표고: EL.%{z:.2f}m<extra></extra>'
                 });
                 traces.push({
@@ -5642,7 +7006,7 @@
                     type: 'surface', name: '연암 상단',
                     colorscale: [[0,'#708090'],[0.5,'#778899'],[1,'#696969']],
                     opacity: clipCenter ? 0.85 : 0.7, showscale: false,
-                    contours: { z: { show: showContours, color: 'rgba(47,79,79,0.3)', width: 1 } },
+                    contours: { z: { show: showContours, color: 'rgba(47,79,79,0.3)', width: 1, size: 0.5 } },
                     hovertemplate: '<b>연암 상단</b><br>표고: EL.%{z:.2f}m<extra></extra>'
                 });
                 traces.push({
@@ -5654,8 +7018,9 @@
                 });
             }
 
-            // 5. 시추공 및 말뚝
-            if (showBoreholes) {
+            // 5. 시추공 및 말뚝 (시추공과 말뚝은 독립적으로 표시)
+            // 시추공 또는 말뚝 중 하나라도 표시할 경우 데이터 준비
+            if (showBoreholes || showPiles) {
                 const penetrationDepth = parseFloat(document.getElementById('penetrationDepth')?.value) || 1.0;
                 console.log('[3D 검증] 현재 설정 - 지지층:', document.getElementById('bearingLayer')?.value, ', 근입깊이:', penetrationDepth, 'm');
 
@@ -5691,35 +7056,37 @@
                     return bhInfo;
                 });
 
-                // 시추공 마커 (크기 축소)
-                const markerColors = bhData.map((b, i) => i === selectedIdx ? '#FF5722' : '#1565C0');
-                const markerSizes = bhData.map((b, i) => i === selectedIdx ? 6 : 4);
+                // 시추공 마커 (크기 축소) - showBoreholes가 true일 때만
+                if (showBoreholes) {
+                    const markerColors = bhData.map((b, i) => i === selectedIdx ? '#FF5722' : '#1565C0');
+                    const markerSizes = bhData.map((b, i) => i === selectedIdx ? 6 : 4);
 
-                traces.push({
-                    x: bhData.map(b => b.x), y: bhData.map(b => b.y), z: bhData.map(b => b.groundEl + 1),
-                    mode: 'markers+text', type: 'scatter3d',
-                    marker: { size: markerSizes, color: markerColors, symbol: 'circle', line: { color: '#fff', width: 1 } },
-                    text: bhData.map(b => b.holeNo),
-                    textposition: 'top center',
-                    textfont: { size: 8, color: '#333', family: 'Arial' },
-                    name: '시추공',
-                    hovertemplate: bhData.map(b =>
-                        `<b>${b.holeNo}</b><br>지표고: EL.${b.groundEl.toFixed(2)}m<br>시추깊이: ${b.totalDepth.toFixed(1)}m<extra></extra>`)
-                });
-
-                // 시추공 수직 라인 (가는 선)
-                bhData.forEach((bh, idx) => {
-                    const lineColor = idx === selectedIdx ? '#FF5722' : '#0277BD';
-                    const lineWidth = idx === selectedIdx ? 4 : 2;
                     traces.push({
-                        x: [bh.x, bh.x], y: [bh.y, bh.y], z: [bh.groundEl, bh.endEl],
-                        mode: 'lines', type: 'scatter3d',
-                        line: { color: lineColor, width: lineWidth },
-                        showlegend: false, hoverinfo: 'skip'
+                        x: bhData.map(b => b.x), y: bhData.map(b => b.y), z: bhData.map(b => b.groundEl + 1),
+                        mode: 'markers+text', type: 'scatter3d',
+                        marker: { size: markerSizes, color: markerColors, symbol: 'circle', line: { color: '#fff', width: 1 } },
+                        text: bhData.map(b => b.holeNo),
+                        textposition: 'top center',
+                        textfont: { size: 8, color: '#333', family: 'Arial' },
+                        name: '시추공',
+                        hovertemplate: bhData.map(b =>
+                            `<b>${b.holeNo}</b><br>지표고: EL.${b.groundEl.toFixed(2)}m<br>시추깊이: ${b.totalDepth.toFixed(1)}m<extra></extra>`)
                     });
-                });
 
-                // 말뚝 표시
+                    // 시추공 수직 라인 (가는 선)
+                    bhData.forEach((bh, idx) => {
+                        const lineColor = idx === selectedIdx ? '#FF5722' : '#0277BD';
+                        const lineWidth = idx === selectedIdx ? 4 : 2;
+                        traces.push({
+                            x: [bh.x, bh.x], y: [bh.y, bh.y], z: [bh.groundEl, bh.endEl],
+                            mode: 'lines', type: 'scatter3d',
+                            line: { color: lineColor, width: lineWidth },
+                            showlegend: false, hoverinfo: 'skip'
+                        });
+                    });
+                }
+
+                // 말뚝 표시 - 시추공과 독립적으로 표시
                 if (showPiles) {
                     bhData.filter(b => b.pileLength > 0).forEach((bh, idx) => {
                         const isSelected = bh.idx === selectedIdx;
@@ -5734,16 +7101,17 @@
                             name: idx === 0 ? '말뚝' : '', showlegend: idx === 0, hoverinfo: 'skip'
                         });
 
-                        // 말뚝 선단 - Cone
+                        // 말뚝 선단 - diamond 마커로 표시 (WebGL cone 오류 방지)
                         traces.push({
-                            type: 'cone',
+                            type: 'scatter3d',
+                            mode: 'markers',
                             x: [bh.x], y: [bh.y], z: [bh.pileTipEl],
-                            u: [0], v: [0], w: [-0.5],
-                            sizemode: 'absolute',
-                            sizeref: isSelected ? 1.2 : 0.8,
-                            anchor: 'tip',
-                            colorscale: [[0, '#B71C1C'], [1, '#E53935']],
-                            showscale: false,
+                            marker: {
+                                size: isSelected ? 10 : 7,
+                                color: '#E53935',
+                                symbol: 'diamond',
+                                line: { color: '#B71C1C', width: 1 }
+                            },
                             name: idx === 0 ? '선단' : '', showlegend: idx === 0,
                             hovertemplate:
                                 `<b>${bh.holeNo}</b><br>선단: EL.${bh.pileTipEl.toFixed(2)}m<br>` +
@@ -5960,7 +7328,7 @@
                         align-items: center; min-width: 50px; transition: all 0.2s;
                     " onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background=this.dataset.selected==='true'?'#1565C0':'#f5f5f5'">
                         <span style="font-weight: 600;">${bh.hole_no || 'BH-'+(idx+1)}</span>
-                        ${hasResult ? `<span style="font-size: 9px; color: #2e7d32;">${result.pileLength.toFixed(1)}m</span>` : ''}
+                        ${hasResult ? `<span style="font-size: 9px; color: #1a5f7a;">${result.pileLength.toFixed(1)}m</span>` : ''}
                     </button>`;
                 });
                 bhListDiv.innerHTML = html;
@@ -5991,7 +7359,7 @@
                     margin: 20px 0;
                     text-align: center;
                 ">
-                    <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+                    <div style="font-size: 48px; margin-bottom: 15px; color: #c62828; font-weight: bold;">!</div>
                     <h3 style="color: #c62828; margin: 0 0 15px 0; font-size: 1.5rem;">말뚝 지지력 산정 불가</h3>
                     <p style="color: #666; margin: 0 0 20px 0; font-size: 1.1rem;">
                         ${result.invalidReason || '계획고가 지지층 상단보다 낮아 말뚝 설치가 불필요합니다.'}
@@ -6117,9 +7485,27 @@
             let skinFrictionHTML = '';
             const pile = getCurrentPile();
             const D = pile.diameter;
-            const method = document.getElementById('constructionMethod').value;
-            const methodFactor = method === 'driven' ? 1.0 : 0.7;
-            const methodName = method === 'driven' ? '타입말뚝' : '매입말뚝';
+
+            // result 객체에서 설계기준 및 시공방법 정보 가져오기 (일관성 유지)
+            const designStandard = result.designStandard || getCurrentDesignStandard();
+            const constructionMethod = result.constructionMethod || getCurrentConstructionMethod();
+            const pileType = CONSTRUCTION_METHODS[constructionMethod]?.type || 'pre_bored';
+            const methodName = pileType === 'driven' ? '타입말뚝' : '매입말뚝';
+            const standardName = result.designStandardName || DESIGN_STANDARDS[designStandard]?.shortName || designStandard;
+            const hammerEff = globalDesignParameters.hammerEfficiency || 60;
+            const isN60Applicable = pileType === 'driven' &&
+                (designStandard === 'structural_foundation_2015' || designStandard === 'highway_bridge_2015');
+
+            // 설계조건 요약 표시
+            skinFrictionHTML += `
+                <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #1976d2;">
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem;">
+                        <div><strong>설계기준:</strong> ${standardName}</div>
+                        <div><strong>시공방법:</strong> ${methodName}</div>
+                        <div><strong>N₆₀ 보정:</strong> ${isN60Applicable ? `<span style="color: #1565c0; font-weight: 600;">적용 (해머효율 ${hammerEff}%)</span>` : '<span style="color: #666;">미적용</span>'}</div>
+                    </div>
+                </div>
+            `;
 
             // 현재 적용 중인 계수 읽기 (입력 검토 탭에서 설정한 값)
             const betaSandForDisplay = parseFloat(document.getElementById('betaSand')?.value) || 2.0;
@@ -6132,30 +7518,139 @@
                     const detail = result.skinFrictionDetails[index];
                     // soilType을 사용하여 점성토/사질토 판별 (온톨로지 기반)
                     const isClay = detail.soilType === 'clay';
-                    const soilTypeLabel = isClay ? '점성토' : '사질토';
-                    const betaValue = isClay ? betaClayForDisplay : betaSandForDisplay;
+                    const isRock = detail.soilType === 'rock';
+                    const soilTypeLabel = isRock ? '암반' : (isClay ? '점성토' : '사질토');
 
+                    // 보수적 색상 팔레트 (암반: 갈색계, 점성토: 진한 회청색, 사질토: 진한 회색)
                     skinFrictionHTML += `
                         <div class="calc-substitution" style="margin-top: 10px; font-weight: 600;">
-                            ▶ 구간 ${index + 1}: ${detail.depth}m (${detail.layer})
+                            ▶ 구간 ${index + 1}: ${detail.depth}m (${detail.layer}) - <span style="color: ${isRock ? '#5d4037' : (isClay ? '#37474f' : '#455a64')}">${soilTypeLabel}</span>
                         </div>
                     `;
 
-                    // 계산식 표현 - 입력 검토 탭의 계수 값 사용
+                    // 계산식 표현 - 설계기준별 공식 적용
                     const N = detail.N || 0;
+                    const N60 = detail.N60 || (N * hammerEff / 60);
+                    const cu = detail.cu || (6.25 * N);
                     const thickness = detail.thickness || 0;
                     const fs = detail.fs || 0;
                     const As = detail.As || 0;
                     const Qs = detail.Qs || 0;
-                    const fs_raw = betaValue * N;
-                    const fs_final = fs_raw * methodFactor;
 
-                    skinFrictionHTML += `
-                        <div class="calc-intermediate" style="margin-left: 20px;">
-                            ${soilTypeLabel}: $f_s = \\beta \\times N \\times \\text{시공계수}$<br>
-                            $f_s = ${betaValue} \\times ${N} \\times ${methodFactor} = ${fs_final.toFixed(1)}$ kPa
-                        </div>
-                    `;
+                    // 설계기준별 공식 표시
+                    if (isRock) {
+                        // 암반: 구조물기초(2015), 도로교(2015)만 계산
+                        if (designStandard === 'building_foundation_2005') {
+                            skinFrictionHTML += `
+                                <div class="calc-intermediate" style="margin-left: 20px;">
+                                    암반: <span style="color: #999;">해당 기준 없음 (건축기초구조 2005)</span><br>
+                                    $f_s = 0$ kPa
+                                </div>
+                            `;
+                        } else {
+                            skinFrictionHTML += `
+                                <div class="calc-intermediate" style="margin-left: 20px;">
+                                    암반 (FHWA): $f_s = 0.65 \\cdot P_a \\cdot \\sqrt{q_u/P_a}$<br>
+                                    $f_s = ${fs.toFixed(1)}$ kPa
+                                </div>
+                            `;
+                        }
+                    } else if (isClay) {
+                        // 점성토: 설계기준별 공식 적용
+                        if (designStandard === 'highway_bridge_2015') {
+                            if (pileType === 'driven') {
+                                const alpha = getAlphaFromCu(cu);
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        점성토 (도로교 타입): $f_s = \\alpha \\cdot c_u = ${alpha.toFixed(2)} \\times ${cu.toFixed(0)} = ${fs.toFixed(1)}$ kPa
+                                    </div>
+                                `;
+                            } else {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        점성토 (도로교 매입): $f_s = \\min(c_u, 10N, 100) = \\min(${cu.toFixed(0)}, ${(10*N).toFixed(0)}, 100) = ${fs.toFixed(1)}$ kPa
+                                    </div>
+                                `;
+                            }
+                        } else if (designStandard === 'building_foundation_2005') {
+                            if (pileType === 'driven') {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        점성토 (건축기초 타입): $f_s = \\beta \\cdot c_u = 0.8 \\times ${cu.toFixed(0)} = ${fs.toFixed(1)}$ kPa (≤100)
+                                    </div>
+                                `;
+                            } else {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        점성토 (건축기초 매입): $f_s = 0.8 \\times c_u = 0.8 \\times ${cu.toFixed(0)} = ${fs.toFixed(1)}$ kPa (≤100)
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            // structural_foundation_2015
+                            if (pileType === 'driven') {
+                                const alpha = getAlphaFromCu(cu);
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        점성토 (구조물기초 타입): $f_s = \\alpha \\cdot c_u = ${alpha.toFixed(2)} \\times ${cu.toFixed(0)} = ${fs.toFixed(1)}$ kPa
+                                    </div>
+                                `;
+                            } else {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        점성토 (구조물기초 매입): $f_s = 0.8 \\times c_u = 0.8 \\times ${cu.toFixed(0)} = ${fs.toFixed(1)}$ kPa (≤100)
+                                    </div>
+                                `;
+                            }
+                        }
+                    } else {
+                        // 사질토: 설계기준별 공식 적용
+                        if (designStandard === 'highway_bridge_2015') {
+                            if (pileType === 'driven') {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        사질토 (도로교 타입): $f_s = 1.9 \\times N = 1.9 \\times ${N} = ${fs.toFixed(1)}$ kPa
+                                    </div>
+                                `;
+                            } else {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        사질토 (도로교 매입): $f_s = 5N = 5 \\times ${N} = ${fs.toFixed(1)}$ kPa (≤150)
+                                    </div>
+                                `;
+                            }
+                        } else if (designStandard === 'building_foundation_2005') {
+                            if (pileType === 'driven') {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        사질토 (건축기초 타입): $f_s = 2.0 \\times N = 2.0 \\times ${N} = ${fs.toFixed(1)}$ kPa (≤100)
+                                    </div>
+                                `;
+                            } else {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        사질토 (건축기초 매입): $f_s = 2.5 \\times N = 2.5 \\times ${N} = ${fs.toFixed(1)}$ kPa (≤125)
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            // structural_foundation_2015
+                            if (isN60Applicable) {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        사질토 (구조물기초 타입, N₆₀ 보정): $N_{60} = N \\times \\frac{${hammerEff}}{60} = ${N} \\times ${(hammerEff/60).toFixed(3)} = ${N60.toFixed(1)}$<br>
+                                        $f_s = 2.0 \\times N_{60} = 2.0 \\times ${N60.toFixed(1)} = ${fs.toFixed(1)}$ kPa (≤100)
+                                    </div>
+                                `;
+                            } else {
+                                skinFrictionHTML += `
+                                    <div class="calc-intermediate" style="margin-left: 20px;">
+                                        사질토 (구조물기초 매입): $f_s = 2.5 \\times N = 2.5 \\times ${N} = ${fs.toFixed(1)}$ kPa (≤125)
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
 
                     skinFrictionHTML += `
                         <div class="calc-intermediate" style="margin-left: 20px;">
@@ -6186,11 +7681,10 @@
                 let totalQs_sand = 0;
                 let totalQs_clay = 0;
 
-                // 현재 적용 중인 계수 읽기
-                const betaSandValue = parseFloat(document.getElementById('betaSand')?.value) || 2.0;
-                const betaClayValue = parseFloat(document.getElementById('betaClay')?.value) || 6.25;
+                // 현재 적용 중인 계수 읽기 (설계기준별 계수)
+                const betaSandValue = getSkinFrictionCoeff(designStandard, pileType, 'sand');
+                const betaClayValue = getSkinFrictionCoeff(designStandard, pileType, 'clay');
                 const pileD = pile.diameter;
-                const methodFactor = method === 'driven' ? 1.0 : 0.7;
 
                 // 작업면 표고 (말뚝 두부 위치)
                 const excavationEL = result.excavation || 0;
@@ -6198,9 +7692,11 @@
                 result.skinFrictionDetails.forEach((detail, index) => {
                     cumulativeQs += detail.Qs || 0;
                     const isClay = detail.soilType === 'clay';
-                    const soilTypeLabel = isClay ? '점성토' : '사질토';
-                    const soilTypeColor = isClay ? '#fafafa' : '#f8f8f8';  // 차분한 색상
-                    const betaValue = isClay ? betaClayValue : betaSandValue;
+                    const isRock = detail.soilType === 'rock';
+                    const soilTypeLabel = isRock ? '암반' : (isClay ? '점성토' : '사질토');
+                    const soilTypeColor = isRock ? '#f5f5f5' : (isClay ? '#fafafa' : '#f8f8f8');  // 차분한 색상
+                    // 설계기준별 공식 계수 표시
+                    const betaValue = getSkinFrictionCoeff(designStandard, pileType, detail.soilType);
 
                     if (isClay) {
                         totalQs_clay += detail.Qs || 0;
@@ -6226,14 +7722,46 @@
                     const elFrom = (excavationEL - depthFrom).toFixed(1);
                     const elTo = (excavationEL - depthTo).toFixed(1);
 
-                    // fs 계산 상세
+                    // fs 계산 상세 - 설계기준별 공식 표시
+                    const cu = detail.cu || (6.25 * N);
+                    const N60_detail = detail.N60 || (N * hammerEff / 60);
+                    let fsFormulaDesc = '';
+                    if (isRock) {
+                        if (designStandard === 'building_foundation_2005') {
+                            fsFormulaDesc = '해당 기준 없음 (건축기초 2005)';
+                        } else {
+                            fsFormulaDesc = `FHWA: fs = 0.65Pa√(qu/Pa) = ${fs.toFixed(1)} kPa`;
+                        }
+                    } else if (isClay) {
+                        if (designStandard === 'highway_bridge_2015' && pileType === 'driven') {
+                            fsFormulaDesc = `α·cu (α=${getAlphaFromCu(cu).toFixed(2)}, cu=${cu.toFixed(0)}) = ${fs.toFixed(1)} kPa`;
+                        } else if (designStandard === 'highway_bridge_2015' && pileType !== 'driven') {
+                            fsFormulaDesc = `min(cu, 10N, 100) = min(${cu.toFixed(0)}, ${10*N}, 100) = ${fs.toFixed(1)} kPa`;
+                        } else {
+                            fsFormulaDesc = `0.8×cu = 0.8×${cu.toFixed(0)} = ${fs.toFixed(1)} kPa`;
+                        }
+                    } else {
+                        // 사질토
+                        if (designStandard === 'structural_foundation_2015' && pileType === 'driven') {
+                            fsFormulaDesc = `2.0×N₆₀ = 2.0×${N60_detail.toFixed(1)} = ${fs.toFixed(1)} kPa`;
+                        } else if (designStandard === 'highway_bridge_2015' && pileType === 'driven') {
+                            fsFormulaDesc = `1.9×N = 1.9×${N} = ${fs.toFixed(1)} kPa`;
+                        } else if (designStandard === 'highway_bridge_2015') {
+                            fsFormulaDesc = `5×N = 5×${N} = ${fs.toFixed(1)} kPa (≤150)`;
+                        } else if (designStandard === 'building_foundation_2005' && pileType === 'driven') {
+                            fsFormulaDesc = `2.0×N = 2.0×${N} = ${fs.toFixed(1)} kPa (≤100)`;
+                        } else {
+                            fsFormulaDesc = `2.5×N = 2.5×${N} = ${fs.toFixed(1)} kPa`;
+                        }
+                    }
+
                     const fsTooltip = `
                         <div class="calc-tooltip-title">주면마찰응력 (fs) 계산</div>
-                        <div class="calc-tooltip-formula">fs = β × N × 시공보정계수</div>
-                        <div class="calc-tooltip-step">• β (${soilTypeLabel}) = ${betaValue}</div>
-                        <div class="calc-tooltip-step">• N값 = ${N}</div>
-                        <div class="calc-tooltip-step">• 시공보정계수 = ${methodFactor} (${method === 'driven' ? '타입' : '매입'})</div>
-                        <div class="calc-tooltip-result">fs = ${betaValue} × ${N} × ${methodFactor} = ${fs.toFixed(1)} kPa</div>
+                        <div class="calc-tooltip-formula">${standardName} - ${methodName}</div>
+                        <div class="calc-tooltip-step">• 토질: ${soilTypeLabel}</div>
+                        <div class="calc-tooltip-step">• N값 = ${N}${isN60Applicable ? `, N₆₀ = ${N60_detail.toFixed(1)}` : ''}</div>
+                        ${isClay ? `<div class="calc-tooltip-step">• cu = ${cu.toFixed(0)} kPa</div>` : ''}
+                        <div class="calc-tooltip-result">${fsFormulaDesc}</div>
                     `;
 
                     // As 계산 상세
@@ -6282,17 +7810,24 @@
                         ? `${sampleInfo.sampleNo || ''} @${sampleInfo.depth}m: ${sampleInfo.hits} → N=${N}`
                         : `보간값: N=${N}`;
 
+                    // N60 보정값 계산
+                    const N60_value = detail.N60 || (N * hammerEff / 60);
+                    const showN60 = isN60Applicable && !isClay && !isRock;
+
                     // 새로운 컬럼 순서: 토층명, 깊이(EL,m), 토질분류, 말뚝길이(m), N값, β, fs, As, Qs, 누적
                     tableHTML += `
                         <tr style="background-color: ${soilTypeColor};">
                             <td>${detail.layer}${sampleDisplay}</td>
                             <td>EL.${elFrom}~${elTo}</td>
-                            <td style="font-weight: 500; color: ${isClay ? '#455a64' : '#5d4037'};">${soilTypeLabel}</td>
+                            <td style="font-weight: 500; color: ${isRock ? '#795548' : (isClay ? '#455a64' : '#5d4037')};">${soilTypeLabel}</td>
                             <td class="calc-tooltip">
                                 <span class="calc-tooltip-trigger">${thickness.toFixed(2)}<br><small style="color:#666;">(Σ${cumulativePileLength.toFixed(1)})</small></span>
                                 <div class="calc-tooltip-content">${pileLengthTooltip}</div>
                             </td>
-                            <td title="${nValueTitle}">${N}</td>
+                            <td title="${nValueTitle}">
+                                ${N}
+                                ${showN60 ? `<br><small style="color:#1976d2; font-weight:600;">N₆₀=${N60_value.toFixed(1)}</small>` : ''}
+                            </td>
                             <td>${betaValue}</td>
                             <td class="calc-tooltip">
                                 <span class="calc-tooltip-trigger">${fs.toFixed(1)}</span>
@@ -6327,7 +7862,7 @@
                         <td colspan="4" style="text-align: right;">점성토 합계 (βc=${betaClayValue}):</td>
                         <td colspan="2">${totalQs_clay.toFixed(1)} kN</td>
                     </tr>
-                    <tr style="background-color: #e8f5e9; font-weight: 700;">
+                    <tr style="background-color: #eceff1; font-weight: 700;">
                         <td colspan="4"></td>
                         <td colspan="4" style="text-align: right;">총 주면마찰력 (Qs):</td>
                         <td colspan="2">${cumulativeQs.toFixed(1)} kN</td>
@@ -6345,29 +7880,73 @@
             // Update end bearing - Mathcad style with detailed calculation
             const Ap = Math.PI * pile.diameter * pile.diameter / 4;
             const Qp = result.Qp || 0;
-            const endBearingCoeff = result.endBearingCoeff || parseFloat(document.getElementById('endBearingCoefficient').value) || 300;
-            const tipN = result.bearingLayer ? getAverageN(result.bearingLayer) : 50;
-            const methodForEndBearing = document.getElementById('constructionMethod').value;
-            const qpLimit = methodForEndBearing === 'driven' ? 15000 : 12000;
-            const qp_raw = endBearingCoeff * tipN;
-            const qp_calculated = Math.min(qp_raw, qpLimit);
+            // result 객체에서 선단 N값 가져오기 (계산 시 사용된 실제 값)
+            const tipN = result.tipN || (result.bearingLayer ? getAverageN(result.bearingLayer) : 50);
+            const methodForEndBearing = result.constructionMethod || getCurrentConstructionMethod();
+            const methodInfoForEndBearing = CONSTRUCTION_METHODS[methodForEndBearing];
             const bearingLayerName = result.bearingLayer ? result.bearingLayer.soil_name : '풍화암';
+            const bearingSoilType = result.bearingLayer?.soilType || 'sand';
+
+            // 설계기준별 선단지지력 계수 및 상한값 결정
+            let endBearingCoeff, qpLimit, endBearingFormulaDesc;
+            if (designStandard === 'highway_bridge_2015') {
+                if (pileType === 'pre_bored') {
+                    endBearingCoeff = methodInfoForEndBearing?.endBearingCoeff || 200;
+                    qpLimit = methodInfoForEndBearing?.endBearingLimit || 12000;
+                    endBearingFormulaDesc = `도로교(2015) 매입말뚝 - ${methodInfoForEndBearing?.name || '시멘트페이스트'}`;
+                } else {
+                    endBearingCoeff = 300;
+                    qpLimit = 15000;
+                    endBearingFormulaDesc = `도로교(2015) 타입말뚝`;
+                }
+            } else if (designStandard === 'building_foundation_2005') {
+                if (pileType === 'driven') {
+                    endBearingCoeff = 300;
+                    qpLimit = 18000;
+                    endBearingFormulaDesc = `건축기초(2005) 타입말뚝`;
+                } else {
+                    endBearingCoeff = 200;
+                    qpLimit = 12000;
+                    endBearingFormulaDesc = `건축기초(2005) 매입말뚝`;
+                }
+            } else {
+                // structural_foundation_2015
+                if (pileType === 'driven') {
+                    endBearingCoeff = 300;
+                    qpLimit = 15000;
+                    endBearingFormulaDesc = `구조물기초(2015) 타입말뚝`;
+                } else {
+                    endBearingCoeff = 200;
+                    qpLimit = 12000;
+                    endBearingFormulaDesc = `구조물기초(2015) 매입말뚝`;
+                }
+            }
+
+            // 실제 계산된 값 사용 (result에서 가져오기)
+            const qp_raw = result.qp || (endBearingCoeff * tipN);
+            const qp_calculated = Math.min(qp_raw, qpLimit);
 
             // Update formula display
             const endBearingFormulaEl = document.getElementById('endBearingFormula');
             if (endBearingFormulaEl) {
                 endBearingFormulaEl.innerHTML = `
-                    선단지지력 계산 (${methodForEndBearing === 'driven' ? '타입말뚝' : '매입말뚝'}):
-                    $$q_p = C_{end} \\times N_{tip}$$
+                    <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #1976d2;">
+                        <strong>적용 기준:</strong> ${endBearingFormulaDesc}
+                    </div>
+                    선단지지력 계산:
+                    $$q_p = C_{end} \\times N_{tip} \\leq q_{p,limit}$$
                     <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">
-                        $C_{end} = ${endBearingCoeff}$ kN/m², 상한값 = ${qpLimit.toLocaleString()} kPa
+                        $C_{end} = ${endBearingCoeff}$, 상한값 = ${qpLimit.toLocaleString()} kPa
                     </div>
                 `;
             }
 
-            // Update N value display with explanation
+            // Update N value display with explanation - result 객체에서 실제 계산값 사용
+            const N1_display = result.N1 || tipN;
+            const N2_display = result.N2 || tipN;
             document.getElementById('endBearingCalc').innerHTML =
-                `지지층 N값: $N_{tip} = ${tipN}$ (${bearingLayerName}, 선단부 상부 1D~하부 4D 평균)`;
+                `지지층 N값: $N_{tip} = \\frac{N_1 + N_2}{2} = \\frac{${N1_display.toFixed(1)} + ${N2_display.toFixed(1)}}{2} = ${tipN.toFixed(1)}$ (${bearingLayerName})<br>
+                <span style="font-size: 0.85rem; color: #666;">※ N₁: 선단부 N값, N₂: 선단 상부 4D 범위 평균 N값</span>`;
 
             // Update area calculation with formula
             document.getElementById('endBearingCalc2').innerHTML =
@@ -6382,7 +7961,7 @@
                          <span style="color: #f57c00;">→ 상한값 적용: $q_p = ${qpLimit.toLocaleString()}$ kPa</span>`;
                 } else {
                     endBearingCalc3El.innerHTML =
-                        `$q_p = C_{end} \\times N_{tip} = ${endBearingCoeff} \\times ${tipN} = ${qp_calculated.toLocaleString()}$ kPa ≤ ${qpLimit.toLocaleString()} kPa ✓`;
+                        `$q_p = C_{end} \\times N_{tip} = ${endBearingCoeff} \\times ${tipN} = ${qp_calculated.toLocaleString()}$ kPa (OK)`;
                 }
             }
 
@@ -6416,9 +7995,11 @@
                 spliceDescription = `이음 없음: $Q_{a,material} = ${baseAllowable.toFixed(0)}$ kN (감소 없음)`;
             } else {
                 // 이음 개소 산정
+                const numberOfPilesCalc = Math.ceil(pileLength / PILE_UNIT_LENGTH);
                 spliceDescription = `말뚝 길이: $L = ${pileLength.toFixed(1)}$ m<br>`;
                 spliceDescription += `말뚝 한 본당 길이: $L_{unit} = ${PILE_UNIT_LENGTH}$ m<br>`;
-                spliceDescription += `이음 개소 수: $n = \\lfloor ${pileLength.toFixed(1)} / ${PILE_UNIT_LENGTH} \\rfloor = ${numberOfSplices}$ 개소<br><br>`;
+                spliceDescription += `필요 말뚝 본 수: $\\lceil ${pileLength.toFixed(1)} / ${PILE_UNIT_LENGTH} \\rceil = ${numberOfPilesCalc}$ 본<br>`;
+                spliceDescription += `이음 개소 수: $n = ${numberOfPilesCalc} - 1 = ${numberOfSplices}$ 개소<br><br>`;
                 
                 // 이음 방법별 감소율
             if (spliceMethod === 'welding') {
@@ -6518,10 +8099,29 @@
 
             // Update tip settlement with detailed calculation
             const qp_settle = qp_calculated || 15000;
+
+            // Cp 경험계수: 시공방법 및 지반조건에 따른 설명
+            const bearingSoilTypeForCp = bearingSoilType === 'rock' ? '암반' : (bearingSoilType === 'clay' ? '점성토' : '사질토');
+            const methodTypeForCp = pileType === 'driven' ? '타입말뚝' : '매입말뚝';
+            let CpDescription = '';
+            if (pileType === 'driven') {
+                if (bearingSoilType === 'sand' || bearingSoilType === 'rock') {
+                    CpDescription = `타입말뚝, ${bearingSoilTypeForCp}: Cp = 0.02~0.04`;
+                } else {
+                    CpDescription = `타입말뚝, 점성토: Cp = 0.02~0.03`;
+                }
+            } else {
+                if (bearingSoilType === 'sand' || bearingSoilType === 'rock') {
+                    CpDescription = `매입말뚝, ${bearingSoilTypeForCp}: Cp = 0.09~0.18`;
+                } else {
+                    CpDescription = `매입말뚝, 점성토: Cp = 0.03~0.05`;
+                }
+            }
+
             document.getElementById('tipCalc1').innerHTML =
                 `선단 전달 하중: $Q_{ps} = ${Qps.toFixed(1)}$ kN`;
             document.getElementById('tipCalc2').innerHTML =
-                `경험계수: $C_p = ${Cp}$ (매입말뚝, 사질토/풍화암)`;
+                `경험계수: $C_p = ${Cp}$ <span style="font-size: 0.85rem; color: #666;">(${CpDescription})</span>`;
             document.getElementById('tipCalc3').innerHTML =
                 `말뚝 직경: $D = ${pile.diameter}$ m`;
             document.getElementById('tipCalc4').innerHTML =
@@ -6555,7 +8155,7 @@
                 `<strong>총 침하량 산정 (Vesic 3성분법):</strong><br>
                  $$S_t = S_s + S_p + S_{ps}$$
                  $$= ${Ss_display.toFixed(2)} + ${Sp_display.toFixed(2)} + ${Sps_display.toFixed(2)} = ${St.toFixed(2)} \\text{ mm}$$
-                 <div style="margin-top: 15px; padding: 12px; background: ${isPass ? '#e8f5e9' : '#ffebee'}; border-left: 3px solid ${isPass ? 'var(--status-pass)' : 'var(--status-fail)'}; border-radius: 4px;">
+                 <div style="margin-top: 15px; padding: 12px; background: ${isPass ? '#eceff1' : '#ffebee'}; border-left: 3px solid ${isPass ? 'var(--status-pass)' : 'var(--status-fail)'}; border-radius: 4px;">
                      <span style="font-size: 1.1rem;">
                          ${isPass ?
                              `총 침하량 ${St.toFixed(2)} mm ≤ 허용침하량 ${allowableSettlement} mm` :
@@ -6601,6 +8201,8 @@
                 const E_pile_MPa = pile.type === 'steel' ? PILE_ELASTIC_MODULUS.STEEL.E_MPa : PILE_ELASTIC_MODULUS.PHC.E_MPa;
                 const pileTypeName = pile.type === 'steel' ? '강관말뚝' : 'PHC 말뚝';
 
+                // pile.I가 undefined인 경우 계산값 사용
+                const pileI = pile.I || I_calculated;
                 document.getElementById('lateralCalc2').innerHTML =
                     `<strong>단면 2차 모멘트 (중공 원형 단면):</strong><br>
                      <div style="margin: 8px 0 8px 15px; font-size: 0.9rem;">
@@ -6608,13 +8210,13 @@
                          • 내경: $D_i = D_o - 2t = ${D} - 2×${t_pile} = ${D_inner_calc.toFixed(3)}$ m<br>
                          • $I = \\frac{\\pi}{64} \\times (D_o^4 - D_i^4)$<br>
                          • $I = \\frac{\\pi}{64} \\times (${D}^4 - ${D_inner_calc.toFixed(3)}^4) = ${I_calculated.toFixed(6)}$ m⁴<br>
-                         <span style="color: #666;">※ 적용값: ${pile.I.toFixed(6)} m⁴ (말뚝 제원표 기준)</span>
+                         <span style="color: #666;">※ 적용값: ${pileI.toFixed(6)} m⁴ (말뚝 제원표 기준)</span>
                      </div>
                      <strong>탄성계수 (구조물기초설계기준해설 표 5.3.10):</strong><br>
                      <div style="margin: 8px 0 8px 15px; font-size: 0.9rem;">
                          • ${pileTypeName}: $E = ${E_pile_MPa.toLocaleString()}$ MPa = ${E_pile.toExponential(2)} kN/m²<br>
                      </div>
-                     <strong>휨강성:</strong> $EI = ${E_pile.toExponential(2)} \\times ${pile.I.toFixed(6)} = ${hc.EI.toFixed(0)}$ kN·m²`;
+                     <strong>휨강성:</strong> $EI = ${E_pile.toExponential(2)} \\times ${pileI.toFixed(6)} = ${(hc.EI || 0).toFixed(0)}$ kN·m²`;
 
                 // 4-3: 특성값 계산 (플라스틱 단면계수 문구 삭제됨)
                 document.getElementById('lateralCalc3').innerHTML =
@@ -6640,7 +8242,7 @@
                             극한지지력: $H_u = ${hc.broms.Hu.toFixed(2)}$ kN<br>
                             허용 수평지지력: $H_{a,Broms} = \\frac{H_u}{FS_h} = \\frac{${hc.broms.Hu.toFixed(2)}}{${parseFloat(document.getElementById('sfHorizontal').value) || 2.0}} = ${hc.broms.Ha.toFixed(2)}$ kN
                         </div>
-                        <div style="padding: 12px; background: #e8f5e9; border-left: 3px solid var(--status-pass); border-radius: 4px;">
+                        <div style="padding: 12px; background: #eceff1; border-left: 3px solid var(--status-pass); border-radius: 4px;">
                             <strong style="color: var(--status-pass); font-size: 1.1rem;">최종 허용 수평지지력:</strong><br>
                             $H_a = \\min(H_{a,Chang}, H_{a,Broms}) = \\min(${hc.chang.Ha.toFixed(2)}, ${hc.broms.Ha.toFixed(2)}) = ${hc.Ha_final.toFixed(2)}$ kN
                         </div>
@@ -7166,7 +8768,7 @@
                     ctx.fillRect(startX, fillY, columnWidth, fillHeight * scale);
                     
                     // Draw work surface line (top of fill)
-                    ctx.strokeStyle = '#2e7d32';
+                    ctx.strokeStyle = '#1a5f7a';
                     ctx.lineWidth = 3;
                     ctx.setLineDash([]);
                     ctx.beginPath();
@@ -7174,7 +8776,7 @@
                     ctx.lineTo(startX + columnWidth + 20, workSurfaceY);
                     ctx.stroke();
                     
-                    ctx.fillStyle = '#2e7d32';
+                    ctx.fillStyle = '#1a5f7a';
                     ctx.font = 'bold 11px Arial';
                     ctx.textAlign = 'left';
                     ctx.fillText(`작업면 (성토 후) EL.${targetElevation.toFixed(1)}m`, startX + columnWidth + 25, workSurfaceY + 3);
@@ -7457,17 +9059,64 @@
                 const borehole = boreholeData[originalIndex];
                 const pile = getCurrentPile();
                 
+                const standardName = result.designStandardName || DESIGN_STANDARDS[getCurrentDesignStandard()]?.shortName || '구조물기초(2015)';
+                const methodName = result.constructionMethodName || CONSTRUCTION_METHODS[getCurrentConstructionMethod()]?.name || '시멘트페이스트';
+                const hammerEff = globalDesignParameters.hammerEfficiency || 60;
+
                 detailedCalculations += `
                     <div style="page-break-before: always; margin-top: 40px;">
                         <h3 style="color: var(--primary-steel); margin-bottom: 20px;">
                             시추공 ${result.borehole} 상세 계산서
                         </h3>
-                        
+
                         <h4 style="color: var(--primary-navy); margin: 20px 0 15px 0;">1) 설계 조건</h4>
                         <table class="data-table" style="margin-bottom: 20px;">
                             <tr>
                                 <td style="width: 200px; font-weight: 600;">시추공 번호</td>
                                 <td>${result.borehole}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">적용 설계기준</td>
+                                <td><span style="background: #e3f2fd; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${standardName}</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">시공방법</td>
+                                <td>
+                                    ${methodName}
+                                    <span style="margin-left: 8px; padding: 2px 6px; border-radius: 3px; font-size: 0.8rem; background: ${CONSTRUCTION_METHODS[result.constructionMethod || getCurrentConstructionMethod()]?.type === 'driven' ? '#eceff1' : '#f5f5f5'};">
+                                        ${CONSTRUCTION_METHODS[result.constructionMethod || getCurrentConstructionMethod()]?.type === 'driven' ? '타입말뚝' : '매입말뚝'}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">해머효율 / N₆₀ 보정</td>
+                                <td>
+                                    ${(() => {
+                                        const currentStandard = result.designStandard || getCurrentDesignStandard();
+                                        const currentMethod = result.constructionMethod || getCurrentConstructionMethod();
+                                        const pileType = CONSTRUCTION_METHODS[currentMethod]?.type || 'pre_bored';
+                                        const isN60Applicable = pileType === 'driven' &&
+                                            (currentStandard === 'structural_foundation_2015' || currentStandard === 'highway_bridge_2015');
+
+                                        if (isN60Applicable) {
+                                            return `해머효율 ${hammerEff}%
+                                                <span style="margin-left: 8px; padding: 2px 8px; border-radius: 4px; background: #e3f2fd; color: #1565c0; font-weight: 600;">
+                                                    N₆₀ 보정 적용
+                                                </span>
+                                                <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">
+                                                    N₆₀ = N × (${hammerEff}/60) = N × ${(hammerEff/60).toFixed(3)}
+                                                </div>`;
+                                        } else {
+                                            return `해머효율 ${hammerEff}%
+                                                <span style="margin-left: 8px; padding: 2px 8px; border-radius: 4px; background: #f5f5f5; color: #666;">
+                                                    N₆₀ 보정 미적용
+                                                </span>
+                                                <div style="font-size: 0.85rem; color: #888; margin-top: 4px;">
+                                                    ※ 매입말뚝 또는 건축기초구조 기준에서는 N₆₀ 보정을 적용하지 않습니다.
+                                                </div>`;
+                                        }
+                                    })()}
+                                </td>
                             </tr>
                             <tr>
                                 <td style="font-weight: 600;">지표고</td>
@@ -7488,14 +9137,55 @@
                         </table>
                         
                         <h4 style="color: var(--primary-navy); margin: 20px 0 15px 0;">2) 지지력 계산</h4>
-                        
+
+                        ${(() => {
+                            const currentStandard = result.designStandard || getCurrentDesignStandard();
+                            const currentMethod = result.constructionMethod || getCurrentConstructionMethod();
+                            const pileType = CONSTRUCTION_METHODS[currentMethod]?.type || 'pre_bored';
+                            const isN60Applicable = pileType === 'driven' &&
+                                (currentStandard === 'structural_foundation_2015' || currentStandard === 'highway_bridge_2015');
+
+                            return `
+                            ${isN60Applicable ? `
+                            <div style="background: #e3f2fd; padding: 12px 15px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #1976d2;">
+                                <strong style="color: #1565c0;">N₆₀ 보정 적용</strong>
+                                <p style="margin: 8px 0 0 0; font-size: 0.9rem;">
+                                    해머효율: ${hammerEff}% → \\( N_{60} = N \\times \\frac{${hammerEff}}{60} = N \\times ${(hammerEff/60).toFixed(3)} \\)<br>
+                                    <small style="color: #666;">※ 타입말뚝(Driven Pile)의 사질토 주면마찰력 계산에 N₆₀ 보정 적용</small>
+                                </p>
+                            </div>
+                            ` : `
+                            <div style="background: #f5f5f5; padding: 10px 15px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #666;">
+                                ※ N₆₀ 보정 미적용 (매입말뚝 또는 건축기초구조 기준)
+                            </div>
+                            `}
+                            `;
+                        })()}
+
                         <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                             <h5 style="margin-bottom: 10px;">주면마찰력 계산 (층별)</h5>
-                            <p style="margin: 5px 0 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
-                                주면마찰응력 계산식 (구조물기초설계기준해설):<br>
-                                - 사질토: $f_s = \\beta_s \\times N$ (βs = ${parseFloat(document.getElementById('betaSand')?.value) || 2.0})<br>
-                                - 점성토: $f_s = \\beta_c \\times N$ (βc = ${parseFloat(document.getElementById('betaClay')?.value) || 6.25})
-                            </p>
+
+                            <div style="background: #fff; padding: 12px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #e0e0e0;">
+                                <p style="margin: 0 0 8px 0; font-weight: 600; color: var(--primary-navy);">적용 공식 (${standardName}):</p>
+                                ${(() => {
+                                    const currentStandard = result.designStandard || getCurrentDesignStandard();
+                                    const currentMethod = result.constructionMethod || getCurrentConstructionMethod();
+                                    const pileType = CONSTRUCTION_METHODS[currentMethod]?.type || 'pre_bored';
+                                    return `
+                                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                                        <div style="flex: 1; min-width: 200px;">
+                                            <span style="display: inline-block; background: #f5f5f5; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 4px;">사질토</span><br>
+                                            ${getSkinFrictionFormulaText(currentStandard, pileType, 'sand')}
+                                        </div>
+                                        <div style="flex: 1; min-width: 200px;">
+                                            <span style="display: inline-block; background: #eceff1; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 4px;">점성토</span><br>
+                                            ${getSkinFrictionFormulaText(currentStandard, pileType, 'clay')}
+                                        </div>
+                                    </div>
+                                    `;
+                                })()}
+                            </div>
+
                             <table class="data-table" style="font-size: 0.85rem;">
                                 <thead>
                                     <tr>
@@ -7503,66 +9193,149 @@
                                         <th>토층</th>
                                         <th>두께 (m)</th>
                                         <th>N값</th>
-                                        <th>fs (kPa)</th>
+                                        <th>fs (kPa) - 계산 과정</th>
                                         <th>As (m²)</th>
                                         <th>Qs (kN)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${result.skinFrictionDetails.map(d => {
-                                        const method = document.getElementById('constructionMethod').value;
-                                        const methodFactor = method === 'driven' ? 1.0 : 0.7;
-                                        // soilType을 사용하여 점성토/사질토 판별 (온톨로지 기반)
+                                        const currentMethod = result.constructionMethod || getCurrentConstructionMethod();
+                                        const currentStandard = result.designStandard || getCurrentDesignStandard();
+                                        const pileType = CONSTRUCTION_METHODS[currentMethod]?.type || 'pre_bored';
+                                        const isN60Applicable = pileType === 'driven' &&
+                                            (currentStandard === 'structural_foundation_2015' || currentStandard === 'highway_bridge_2015');
+
                                         const isClay = d.soilType === 'clay';
-                                        // 입력 검토 탭에서 설정한 계수 값 사용
-                                        const betaSand = parseFloat(document.getElementById('betaSand')?.value) || 2.0;
-                                        const betaClay = parseFloat(document.getElementById('betaClay')?.value) || 6.25;
-                                        const betaValue = isClay ? betaClay : betaSand;
-                                        const soilTypeLabel = isClay ? '점성토' : '사질토';
-                                        const calcNote = `$f_s = ${betaValue} \\times ${d.N} \\times ${methodFactor} = ${d.fs.toFixed(1)}$ kPa`;
+                                        const isRock = d.soilType === 'rock';
+                                        const soilTypeLabel = isRock ? '암반' : (isClay ? '점성토' : '사질토');
+                                        const soilBgColor = isRock ? '#f5f5f5' : (isClay ? '#eceff1' : '#f5f5f5');
+
+                                        // 실제 계산 과정 생성
+                                        let calcDetail = '';
+                                        if (isRock) {
+                                            calcDetail = `\\( f_s = 0.65 \\cdot P_a \\cdot \\sqrt{q_u/P_a} = ${d.fs.toFixed(1)} \\) kPa`;
+                                        } else if (isClay) {
+                                            const cuValue = d.cu || 50;
+                                            if (currentStandard === 'highway_bridge_2015') {
+                                                calcDetail = `\\( f_s = \\min(c_u, 10N, 100) = \\min(${cuValue}, ${10*d.N}, 100) = ${d.fs.toFixed(1)} \\) kPa`;
+                                            } else {
+                                                calcDetail = `\\( f_s = 0.8 \\times c_u = 0.8 \\times ${cuValue} = ${d.fs.toFixed(1)} \\) kPa (≤100)`;
+                                            }
+                                        } else {
+                                            // 사질토
+                                            if (isN60Applicable) {
+                                                const N60 = (d.N * hammerEff / 60).toFixed(1);
+                                                if (currentStandard === 'structural_foundation_2015') {
+                                                    calcDetail = `\\( f_s = 2.0 \\times N_{60} = 2.0 \\times ${N60} = ${d.fs.toFixed(1)} \\) kPa (≤100)`;
+                                                } else {
+                                                    calcDetail = `\\( f_s = 1.9 \\times N = 1.9 \\times ${d.N} = ${d.fs.toFixed(1)} \\) kPa`;
+                                                }
+                                            } else {
+                                                if (currentStandard === 'highway_bridge_2015') {
+                                                    calcDetail = `\\( f_s = 5 \\times N = 5 \\times ${d.N} = ${d.fs.toFixed(1)} \\) kPa (≤150)`;
+                                                } else {
+                                                    calcDetail = `\\( f_s = 2.5 \\times N = 2.5 \\times ${d.N} = ${d.fs.toFixed(1)} \\) kPa (≤125)`;
+                                                }
+                                            }
+                                        }
+
                                         return `
-                                        <tr style="background: ${isClay ? '#fafafa' : '#f8f8f8'};">
+                                        <tr style="background: ${soilBgColor};">
                                             <td>${d.depth}m</td>
-                                            <td>${d.layer}</td>
-                                            <td>${d.thickness.toFixed(2)}</td>
-                                            <td>${d.N}</td>
                                             <td>
-                                                ${d.fs.toFixed(1)}
-                                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">
-                                                    ${soilTypeLabel}: ${calcNote}
+                                                ${d.layer}
+                                                <div style="font-size: 0.75rem; color: #666;">${soilTypeLabel}</div>
+                                            </td>
+                                            <td>${d.thickness.toFixed(2)}</td>
+                                            <td>
+                                                ${d.N}
+                                                ${isN60Applicable && !isClay && !isRock ? `<div style="font-size: 0.75rem; color: #1976d2;">N₆₀=${(d.N * hammerEff / 60).toFixed(1)}</div>` : ''}
+                                            </td>
+                                            <td>
+                                                <strong>${d.fs.toFixed(1)}</strong>
+                                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                                                    ${calcDetail}
                                                 </div>
                                             </td>
-                                            <td>${d.As.toFixed(3)}</td>
-                                            <td>${d.Qs.toFixed(1)}</td>
+                                            <td>
+                                                ${d.As.toFixed(3)}
+                                                <div style="font-size: 0.7rem; color: #888;">π×${pile.diameter}×${d.thickness.toFixed(2)}</div>
+                                            </td>
+                                            <td>
+                                                <strong>${d.Qs.toFixed(1)}</strong>
+                                                <div style="font-size: 0.7rem; color: #888;">${d.fs.toFixed(1)}×${d.As.toFixed(3)}</div>
+                                            </td>
                                         </tr>
                                     `;
                                     }).join('')}
                                 </tbody>
                                 <tfoot>
                                     <tr style="font-weight: 600; background: var(--bg-secondary);">
-                                        <td colspan="6">총 주면마찰력: $Q_s = \\sum (f_s \\times A_s)$</td>
-                                        <td>${result.Qs.toFixed(1)} kN</td>
+                                        <td colspan="6">총 주면마찰력: \\( Q_s = \\sum (f_s \\times A_s) \\)</td>
+                                        <td><strong style="font-size: 1.1rem; color: var(--primary-navy);">${result.Qs.toFixed(1)} kN</strong></td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
-                        
+
                         <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                             <h5 style="margin-bottom: 10px;">선단지지력 계산</h5>
+
+                            <div style="background: #fff; padding: 12px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #e0e0e0;">
+                                <p style="margin: 0 0 8px 0; font-weight: 600; color: var(--primary-navy);">적용 공식 (${standardName}, ${methodName}):</p>
+                                ${(() => {
+                                    const currentStandard = result.designStandard || getCurrentDesignStandard();
+                                    const currentMethod = result.constructionMethod || getCurrentConstructionMethod();
+                                    const pileType = CONSTRUCTION_METHODS[currentMethod]?.type || 'pre_bored';
+                                    const bearingSoilType = result.bearingLayer?.soilType || 'sand';
+                                    return getEndBearingFormulaText(currentStandard, pileType, bearingSoilType, currentMethod);
+                                })()}
+                            </div>
+
                             <div style="margin: 10px 0;">
                                 <p style="margin: 5px 0; font-weight: 600;">입력값:</p>
-                                <p style="margin: 5px 0 5px 20px;">$N_{tip} = ${result.bearingLayer ? getAverageN(result.bearingLayer) : 50}$ (선단부 표준관입시험 N값)</p>
-                                <p style="margin: 5px 0 5px 20px;">$D = ${pile.diameter}$ m (말뚝 외경)</p>
+                                <p style="margin: 5px 0 5px 20px;">\\( N_{tip} = ${result.bearingLayer ? getAverageN(result.bearingLayer) : 50} \\) (선단부 표준관입시험 N값)</p>
+                                <p style="margin: 5px 0 5px 20px;">\\( D = ${pile.diameter} \\) m (말뚝 외경)</p>
+                                <p style="margin: 5px 0 5px 20px;">지지층: ${result.bearingLayer ? result.bearingLayer.soil_name : '풍화암'} (${result.bearingLayer?.soilType === 'clay' ? '점성토' : (result.bearingLayer?.soilType === 'rock' ? '암반' : '사질토')})</p>
                             </div>
-                            <div style="margin: 15px 0;">
+                            <div style="margin: 15px 0; padding: 12px; background: #fafafa; border-radius: 4px;">
                                 <p style="margin: 5px 0; font-weight: 600;">계산 과정:</p>
-                                <p style="margin: 5px 0 5px 20px;">단위선단지지력: $q_p = ${result.endBearingCoeff || 300} \\times N_{tip} = ${result.endBearingCoeff || 300} \\times ${result.bearingLayer ? getAverageN(result.bearingLayer) : 50} = ${(pile.crossArea > 0 ? (result.Qp/pile.crossArea).toFixed(0) : 0)}$ kPa</p>
-                                <p style="margin: 5px 0 5px 20px;">선단면적: $A_p = \\frac{\\pi \\times D^2}{4} = \\frac{\\pi \\times ${pile.diameter}^2}{4} = ${(pile.crossArea || 0).toFixed(4)}$ m²</p>
-                                <p style="margin: 5px 0 5px 20px; font-weight: 600;">선단지지력: $Q_p = q_p \\times A_p = ${(pile.crossArea > 0 ? (result.Qp/pile.crossArea).toFixed(0) : 0)} \\times ${(pile.crossArea || 0).toFixed(4)} = ${(result.Qp || 0).toFixed(1)}$ kN</p>
+                                ${(() => {
+                                    const Ntip = result.bearingLayer ? getAverageN(result.bearingLayer) : 50;
+                                    const currentStandard = result.designStandard || getCurrentDesignStandard();
+                                    const currentMethod = result.constructionMethod || getCurrentConstructionMethod();
+                                    const pileType = CONSTRUCTION_METHODS[currentMethod]?.type || 'pre_bored';
+                                    const methodInfo = CONSTRUCTION_METHODS[currentMethod];
+
+                                    let coeff = 200;
+                                    let limit = 12000;
+                                    if (currentStandard === 'highway_bridge_2015' && pileType === 'pre_bored') {
+                                        coeff = methodInfo?.endBearingCoeff || 200;
+                                        limit = methodInfo?.endBearingLimit || 12000;
+                                    } else if (pileType === 'driven') {
+                                        coeff = 300;
+                                        limit = currentStandard === 'building_foundation_2005' ? 18000 : 15000;
+                                    }
+
+                                    const qp_calc = coeff * Math.min(Ntip, 60);
+                                    const qp_final = Math.min(qp_calc, limit);
+                                    const Ap = pile.crossArea || 0;
+                                    const Qp = qp_final * Ap;
+
+                                    return `
+                                    <p style="margin: 5px 0 5px 20px;">단위선단지지력: \\( q_p = ${coeff} \\times N_{tip} = ${coeff} \\times ${Ntip} = ${qp_calc.toFixed(0)} \\) kPa</p>
+                                    ${qp_calc > limit ? `<p style="margin: 5px 0 5px 20px; color: #d32f2f;">→ 상한값 적용: \\( q_p = ${(limit/1000).toFixed(0)},000 \\) kPa (상한 초과)</p>` : ''}
+                                    <p style="margin: 5px 0 5px 20px;">선단면적: \\( A_p = \\frac{\\pi \\times D^2}{4} = \\frac{\\pi \\times ${pile.diameter}^2}{4} = ${Ap.toFixed(4)} \\) m²</p>
+                                    <p style="margin: 10px 0 5px 20px; font-weight: 600; font-size: 1.05rem; color: var(--primary-navy);">
+                                        선단지지력: \\( Q_p = q_p \\times A_p = ${qp_final.toFixed(0)} \\times ${Ap.toFixed(4)} = ${(result.Qp || Qp).toFixed(1)} \\) kN
+                                    </p>
+                                    `;
+                                })()}
                             </div>
                         </div>
                         
-                        <div style="background: #e8f5e9; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <div style="background: #eceff1; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
                             <h5 style="margin-bottom: 10px; color: var(--status-pass);">지지력 산정 결과</h5>
                             <div style="margin: 10px 0;">
                                 <p style="margin: 5px 0; font-weight: 600;">계산 과정:</p>
@@ -7781,7 +9554,14 @@
                             </tr>
                             <tr>
                                 <td style="font-weight: 600;">시공 방법</td>
-                                <td>${document.getElementById('constructionMethod').options[document.getElementById('constructionMethod').selectedIndex].text}</td>
+                                <td>${(() => {
+                                    const el = document.getElementById('constructionMethod');
+                                    if (el && el.options && el.selectedIndex >= 0) {
+                                        return el.options[el.selectedIndex].text;
+                                    }
+                                    const method = getCurrentConstructionMethod();
+                                    return CONSTRUCTION_METHODS[method]?.name || '시멘트페이스트';
+                                })()}</td>
                             </tr>
                             <tr>
                                 <td style="font-weight: 600;">안전율 (연직/수평/인발)</td>
@@ -7830,9 +9610,9 @@
                         <h3 style="color: var(--primary-steel); margin-bottom: 15px;">${includeDesignConditions ? '4.' : '3.'} 종합 평가</h3>
                         <div style="padding: 20px; background: var(--bg-tertiary); border-radius: 4px;">
                             <ul style="margin-left: 20px; line-height: 1.8;">
-                                <li>평균 말뚝 길이: ${(selectedResults.reduce((sum, r) => sum + r.pileLength, 0) / selectedResults.length).toFixed(1)} m</li>
-                                <li>평균 허용지지력: ${(selectedResults.reduce((sum, r) => sum + r.Qa, 0) / selectedResults.length).toFixed(0)} kN</li>
-                                <li>최대 침하량: ${Math.max(...selectedResults.map(r => r.St)).toFixed(1)} mm</li>
+                                <li>평균 말뚝 길이: ${(() => { const valid = selectedResults.filter(r => r.pileLength > 0); return valid.length > 0 ? (valid.reduce((sum, r) => sum + r.pileLength, 0) / valid.length).toFixed(1) : '0.0'; })()} m</li>
+                                <li>평균 허용지지력: ${(selectedResults.filter(r => r.Qa > 0).reduce((sum, r) => sum + r.Qa, 0) / Math.max(1, selectedResults.filter(r => r.Qa > 0).length)).toFixed(0)} kN</li>
+                                <li>최대 침하량: ${Math.max(...selectedResults.map(r => r.St || 0)).toFixed(1)} mm</li>
                             </ul>
                         </div>
                     </div>
@@ -8078,7 +9858,7 @@
                 'var(--text-secondary)': '#4a4a68',
                 'var(--text-muted)': '#8a8aa3',
                 'var(--border-primary)': '#d1d5db',
-                'var(--status-pass)': '#2e7d32',
+                'var(--status-pass)': '#1a5f7a',
                 'var(--status-fail)': '#c62828'
             };
 
@@ -8133,7 +9913,7 @@
                     .replace(/var\(--text-secondary\)/g, '#555')
                     .replace(/var\(--text-muted\)/g, '#888')
                     .replace(/var\(--border-primary\)/g, '#ccc')
-                    .replace(/var\(--status-pass\)/g, '#2e7d32')
+                    .replace(/var\(--status-pass\)/g, '#1a5f7a')
                     .replace(/var\(--status-fail\)/g, '#c62828')
                     .replace(/data-report-section="[^"]*"/g, '')
                     .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '')
@@ -8169,14 +9949,14 @@ h1 { font-size: 18pt; color: #1e3a5f; text-align: center; margin: 20pt 0; paddin
 h2 { font-size: 14pt; color: #1e3a5f; margin: 18pt 0 12pt 0; padding-left: 8pt; border-left: 4pt solid #1e3a5f; }
 h3 { font-size: 12pt; color: #2c5282; margin: 14pt 0 8pt 0; }
 h4 { font-size: 11pt; color: #2c5282; margin: 12pt 0 6pt 0; }
-h5 { font-size: 10pt; color: #2e7d32; margin: 8pt 0 4pt 0; }
+h5 { font-size: 10pt; color: #1a5f7a; margin: 8pt 0 4pt 0; }
 table { width: 100%; border-collapse: collapse; margin: 10pt 0; font-size: 9pt; }
 th { background-color: #1e3a5f; color: #fff; padding: 6pt; text-align: center; font-weight: bold; border: 1pt solid #000; }
 td { padding: 5pt; border: 1pt solid #000; text-align: center; vertical-align: middle; }
 p { margin: 6pt 0; }
 ul, ol { margin: 8pt 0 8pt 20pt; }
 li { margin: 3pt 0; }
-.status-pass { color: #2e7d32; font-weight: bold; }
+.status-pass { color: #1a5f7a; font-weight: bold; }
 .status-fail { color: #c62828; font-weight: bold; }
 div { margin: 5pt 0; }
 </style>
@@ -8324,7 +10104,7 @@ ${processedHTML}
                     .replace(/var\(--text-secondary\)/g, '#555')
                     .replace(/var\(--text-muted\)/g, '#888')
                     .replace(/var\(--border-primary\)/g, '#ccc')
-                    .replace(/var\(--status-pass\)/g, '#2e7d32')
+                    .replace(/var\(--status-pass\)/g, '#1a5f7a')
                     .replace(/var\(--status-fail\)/g, '#c62828')
                     .replace(/data-report-section="[^"]*"/g, '');
 
@@ -8362,7 +10142,7 @@ h1 { font-size: 18pt; color: #1e3a5f; text-align: center; margin: 20px 0; border
 h2 { font-size: 14pt; color: #1e3a5f; margin: 20px 0 10px; border-left: 4px solid #1e3a5f; padding-left: 10px; }
 h3 { font-size: 12pt; color: #2c5282; margin: 15px 0 8px; }
 h4 { font-size: 11pt; color: #2c5282; margin: 12px 0 6px; }
-h5 { font-size: 10pt; color: #2e7d32; margin: 10px 0 5px; }
+h5 { font-size: 10pt; color: #1a5f7a; margin: 10px 0 5px; }
 table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
 th, td { border: 1px solid #333; padding: 5px 6px; text-align: center; vertical-align: middle; }
 th { background: #1e3a5f; color: #fff; font-weight: bold; }
@@ -8371,7 +10151,7 @@ p { margin: 6px 0; }
 ul, ol { margin: 8px 0 8px 20px; }
 li { margin: 3px 0; }
 .data-table { width: 100%; }
-.status-pass { color: #2e7d32; font-weight: bold; }
+.status-pass { color: #1a5f7a; font-weight: bold; }
 .status-fail { color: #c62828; font-weight: bold; }
 img { max-width: 100%; height: auto; }
 </style>
@@ -8479,12 +10259,35 @@ ${htmlContent}
             updateParamRangeControl('param2RangeControls', param2);
         }
 
+        // 민감도 분석 유형별 UI 업데이트
+        function updateSensitivityTypeUI() {
+            const sensitivityType = document.querySelector('input[name="sensitivityType"]:checked')?.value || 'design';
+            const param1Select = document.getElementById('sensitivityParam1');
+            const param2Select = document.getElementById('sensitivityParam2');
+
+            if (!param1Select || !param2Select) return;
+
+            // 유형별 기본 변수 설정
+            if (sensitivityType === 'design') {
+                param1Select.value = 'diameter';
+                param2Select.value = 'penetration';
+            } else if (sensitivityType === 'ground') {
+                param1Select.value = 'nValueFactor';
+                param2Select.value = 'penetration';
+            } else if (sensitivityType === 'safety') {
+                param1Select.value = 'safetyFactor';
+                param2Select.value = 'designStandard';
+            }
+
+            updateSensitivityRangeControls();
+        }
+
         function updateParamRangeControl(containerId, paramType) {
             const container = document.getElementById(containerId);
             if (!container) return;
-            
+
             let html = '';
-            
+
             switch(paramType) {
                 case 'diameter':
                     html = `
@@ -8501,6 +10304,69 @@ ${htmlContent}
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px;">
                                 <input type="checkbox" class="param-value" value="0.6" checked> Ø600
+                            </label>
+                        </div>
+                    `;
+                    break;
+                case 'nValueFactor':
+                    html = `
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <span>N값 보정:</span>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="0.7"> ×0.7 (보수적)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="0.85" checked> ×0.85
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="1.0" checked> ×1.0 (현행)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="1.15" checked> ×1.15
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="1.3"> ×1.3 (낙관적)
+                            </label>
+                        </div>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 8px;">
+                            ※ 실제 N값에 보정계수를 곱하여 지반조건 변화에 따른 지지력 변화를 분석합니다.
+                        </div>
+                    `;
+                    break;
+                case 'safetyFactor':
+                    html = `
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <span>안전율:</span>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="2.0"> 2.0
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="2.5" checked> 2.5
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="3.0" checked> 3.0 (현행)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="3.5" checked> 3.5
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="4.0"> 4.0
+                            </label>
+                        </div>
+                    `;
+                    break;
+                case 'designStandard':
+                    html = `
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <span>설계기준:</span>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="structural_foundation_2015" checked> 구조물기초(2015)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="highway_bridge_2015" checked> 도로교(2015)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" class="param-value" value="building_foundation_2005" checked> 건축기초(2005)
                             </label>
                         </div>
                     `;
@@ -8583,11 +10449,11 @@ ${htmlContent}
             
             // Get selected values for each parameter
             const param1Values = Array.from(document.querySelectorAll('#param1RangeControls .param-value:checked')).map(cb => {
-                if (param1 === 'pileType') return cb.value; // String value
+                if (param1 === 'pileType' || param1 === 'designStandard') return cb.value; // String value
                 return parseFloat(cb.value);
             });
             const param2Values = Array.from(document.querySelectorAll('#param2RangeControls .param-value:checked')).map(cb => {
-                if (param2 === 'pileType') return cb.value; // String value
+                if (param2 === 'pileType' || param2 === 'designStandard') return cb.value; // String value
                 return parseFloat(cb.value);
             });
             
@@ -8624,44 +10490,53 @@ ${htmlContent}
             const borehole = boreholeData[boreholeIndex];
             const baseResult = calculationResults[boreholeIndex];
             const results = [];
-            
+
             // Get base values
             const basePile = getCurrentPile();
             const baseDiameter = basePile.diameter;
             const basePileType = basePile.type || 'phc';
-            const basePenetration = 1.0; // Default penetration
+            const basePenetration = parseFloat(document.getElementById('penetrationDepth')?.value) || 1.0;
             const baseSafetyFactor = parseFloat(document.getElementById('sfVertical').value) || 3.0;
             const baseEndBearingCoeff = parseFloat(document.getElementById('endBearingCoefficient').value) || 300;
-            
+            const baseDesignStandard = getCurrentDesignStandard();
+            const baseNValueFactor = 1.0;
+
             // Calculate for each combination
             for (let i = 0; i < param1Values.length; i++) {
                 for (let j = 0; j < param2Values.length; j++) {
                     const p1Value = param1Values[i];
                     const p2Value = param2Values[j];
-                    
+
                     // Create parameter combination
                     const params = {
                         diameter: baseDiameter,
                         pileType: basePileType,
                         penetration: basePenetration,
                         safetyFactor: baseSafetyFactor,
-                        endBearingCoeff: baseEndBearingCoeff
+                        endBearingCoeff: baseEndBearingCoeff,
+                        designStandard: baseDesignStandard,
+                        nValueFactor: baseNValueFactor
                     };
-                    
-                    // Apply parameter values
-                    if (param1 === 'diameter') params.diameter = parseFloat(p1Value);
-                    else if (param1 === 'pileType') params.pileType = p1Value;
-                    else if (param1 === 'penetration') params.penetration = parseFloat(p1Value);
-                    else if (param1 === 'endBearingCoeff') params.endBearingCoeff = parseFloat(p1Value);
 
-                    if (param2 === 'diameter') params.diameter = parseFloat(p2Value);
-                    else if (param2 === 'pileType') params.pileType = p2Value;
-                    else if (param2 === 'penetration') params.penetration = parseFloat(p2Value);
-                    else if (param2 === 'endBearingCoeff') params.endBearingCoeff = parseFloat(p2Value);
-                    
+                    // Apply parameter values
+                    const applyParam = (paramName, value) => {
+                        switch(paramName) {
+                            case 'diameter': params.diameter = parseFloat(value); break;
+                            case 'pileType': params.pileType = value; break;
+                            case 'penetration': params.penetration = parseFloat(value); break;
+                            case 'endBearingCoeff': params.endBearingCoeff = parseFloat(value); break;
+                            case 'safetyFactor': params.safetyFactor = parseFloat(value); break;
+                            case 'designStandard': params.designStandard = value; break;
+                            case 'nValueFactor': params.nValueFactor = parseFloat(value); break;
+                        }
+                    };
+
+                    applyParam(param1, p1Value);
+                    applyParam(param2, p2Value);
+
                     // Calculate with modified parameters
                     const calcResult = calculateSensitivityCase(borehole, params, baseResult);
-                    
+
                     results.push({
                         param1Value: p1Value,
                         param2Value: p2Value,
@@ -8671,73 +10546,75 @@ ${htmlContent}
                     });
                 }
             }
-            
+
             return results;
         }
 
         function calculateSensitivityCase(borehole, params, baseResult) {
-            // Simplified calculation for sensitivity analysis
-            // This uses the same logic as calculateForBorehole but with modified parameters
-            
+            // 민감도 분석용 계산 (설계기준별 공식 적용)
             const pile = getPileByDiameterAndType(params.diameter, params.pileType);
             const D = params.diameter;
-            
+            const nFactor = params.nValueFactor || 1.0;
+            const designStd = params.designStandard || 'structural_foundation_2015';
+
             // Get original ground elevation
             const originalElevation = getGroundSurfaceElevation(borehole.metadata) || 0;
             const targetElevation = parseFloat(document.getElementById('targetGroundElevation').value) || originalElevation;
-            
+
             // Find bearing layer
             const bearingLayer = findBearingLayer(borehole);
             if (!bearingLayer) {
-                return { Qa: 0, Qu: 0, St: 0, Ha: 0, safetyFactor: 0, costIndex: 100 };
+                return { Qa: 0, Qu: 0, St: 0, Ha: 0, safetyFactor: params.safetyFactor, costIndex: 100 };
             }
-            
+
             // Calculate pile length with modified penetration
             const bearingDepth = getBearingLayerDepth(borehole, bearingLayer);
             const pileTipDepth = bearingDepth + params.penetration;
             const pileLength = pileTipDepth;
-            
-            // Calculate skin friction (simplified)
+
+            // Determine pile type for formula selection
+            const method = document.getElementById('constructionMethod')?.value || 'cement_paste';
+            const pileType = CONSTRUCTION_METHODS[method]?.type || 'pre_bored';
+
+            // Calculate skin friction using design standard formulas
             let Qs = 0;
-            const method = document.getElementById('constructionMethod').value;
-            const methodFactor = method === 'driven' ? 1.0 : 0.7;
-            
-            // Simplified skin friction calculation
+
             for (let depth = 0; depth < pileLength; depth += 1) {
                 const layer = findLayerAtDepth(borehole, depth);
                 if (!layer) continue;
-                
-                const avgN = getAverageN(layer);
+
+                const rawN = getAverageN(layer);
+                const N = rawN * nFactor;  // N값 보정계수 적용
+                const N60 = N * (globalDesignParameters.hammerEfficiency || 60) / 60;
+                const soilType = determineSoilType(layer.soil_name);
+                const cu = estimateCu(N, soilType);
                 const As = Math.PI * D * 1.0;
-                let fs = 0;
-                
-                if (layer.soil_name.includes('점토') || layer.soil_name.includes('실트')) {
-                    const cu = 12 * avgN;
-                    const alpha = cu < 25 ? 1.0 : cu < 50 ? 0.7 : 0.5;
-                    fs = alpha * cu;
-                } else {
-                    const beta = 0.3;
-                    const sigma_v = 18 * depth;
-                    fs = beta * sigma_v;
-                }
-                
-                fs *= methodFactor;
+
+                // 설계기준별 주면마찰력 계산
+                const fs = calculateSkinFriction(designStd, pileType, soilType, N, N60, cu, depth);
                 Qs += fs * As;
             }
             
-            // Calculate end bearing
-            const tipN = getAverageN(bearingLayer);
-            const qp = Math.min(params.endBearingCoeff * tipN, 10000);
+            // Calculate end bearing using design standard formulas
+            const rawTipN = getAverageN(bearingLayer);
+            const tipN = rawTipN * nFactor;  // N값 보정계수 적용
+            const bearingSoilType = determineSoilType(bearingLayer.soil_name);
+            const bearingCu = estimateCu(tipN, bearingSoilType);
             const Ap = Math.PI * D * D / 4;
+
+            // 설계기준별 선단지지력 계산
+            const qp = calculateEndBearing(designStd, pileType, bearingSoilType, tipN, bearingCu, method);
             const Qp = qp * Ap;
-            
+
             const Qu = Qs + Qp;
             const Qa_soil = Qu / params.safetyFactor;
             
             // Apply splice reduction (same logic as calculateForBorehole)
             const spliceMethod = document.getElementById('spliceMethod').value;
             const PILE_UNIT_LENGTH = 15.0;
-            const numberOfSplices = Math.floor(pileLength / PILE_UNIT_LENGTH);
+            // 이음 개소 수 = 필요 말뚝 본 수 - 1
+            const numberOfPiles = Math.ceil(pileLength / PILE_UNIT_LENGTH);
+            const numberOfSplices = Math.max(0, numberOfPiles - 1);
             
             let spliceReductionRate = 0.0;
             if (spliceMethod !== 'none' && numberOfSplices > 0) {
@@ -9002,8 +10879,17 @@ ${htmlContent}
             switch(paramType) {
                 case 'diameter': return `Ø${(value * 1000).toFixed(0)}`;
                 case 'pileType': return value === 'steel' ? '강관' : 'PHC';
-                case 'penetration': return `${value.toFixed(1)}m`;
-                case 'endBearingCoeff': return `${value.toFixed(0)}`;
+                case 'penetration': return `${parseFloat(value).toFixed(1)}m`;
+                case 'endBearingCoeff': return `${parseFloat(value).toFixed(0)}`;
+                case 'nValueFactor': return `×${parseFloat(value).toFixed(2)}`;
+                case 'safetyFactor': return `FS=${parseFloat(value).toFixed(1)}`;
+                case 'designStandard':
+                    const stdNames = {
+                        'structural_foundation_2015': '구조물기초',
+                        'highway_bridge_2015': '도로교',
+                        'building_foundation_2005': '건축기초'
+                    };
+                    return stdNames[value] || value;
                 default: return value.toString();
             }
         }
@@ -9012,8 +10898,11 @@ ${htmlContent}
             switch(paramType) {
                 case 'diameter': return '말뚝 직경';
                 case 'pileType': return '말뚝 종류';
-                case 'penetration': return '근입깊이 (m)';
-                case 'endBearingCoeff': return '선단지지력 계수 (kN/m²)';
+                case 'penetration': return '근입깊이';
+                case 'endBearingCoeff': return '선단지지력 계수';
+                case 'nValueFactor': return 'N값 보정계수';
+                case 'safetyFactor': return '안전율';
+                case 'designStandard': return '설계기준';
                 default: return paramType;
             }
         }
@@ -9041,32 +10930,42 @@ ${htmlContent}
         function updateSensitivityComparisonTable(results, param1, param2, param1Values, param2Values, metrics) {
             const tbody = document.getElementById('sensitivityComparisonTableBody');
             if (!tbody) return;
-            
+
             // Find base case (current design)
             const basePile = getCurrentPile();
             const baseDiameter = basePile.diameter;
             const basePileType = basePile.type || 'phc';
-            const basePenetration = 1.0;
+            const basePenetration = parseFloat(document.getElementById('penetrationDepth')?.value) || 1.0;
             const baseSafetyFactor = parseFloat(document.getElementById('sfVertical').value) || 3.0;
             const baseEndBearingCoeff = parseFloat(document.getElementById('endBearingCoefficient').value) || 300;
-            
+            const baseDesignStandard = getCurrentDesignStandard();
+            const baseNValueFactor = 1.0;
+
+            // Helper function to get base value for a parameter
+            const getBaseValue = (paramType) => {
+                switch(paramType) {
+                    case 'diameter': return baseDiameter;
+                    case 'pileType': return basePileType;
+                    case 'penetration': return basePenetration;
+                    case 'endBearingCoeff': return baseEndBearingCoeff;
+                    case 'safetyFactor': return baseSafetyFactor;
+                    case 'designStandard': return baseDesignStandard;
+                    case 'nValueFactor': return baseNValueFactor;
+                    default: return null;
+                }
+            };
+
             // Helper function to compare values (handles both numeric and string)
             const compareValue = (resultValue, baseValue, paramType) => {
-                if (paramType === 'pileType') {
+                if (paramType === 'pileType' || paramType === 'designStandard') {
                     return resultValue === baseValue;
                 }
                 return Math.abs(parseFloat(resultValue) - parseFloat(baseValue)) < 0.01;
             };
-            
+
             const baseResult = results.find(r => {
-                const p1Match = compareValue(r.param1Value,
-                    param1 === 'diameter' ? baseDiameter :
-                    param1 === 'pileType' ? basePileType :
-                    param1 === 'penetration' ? basePenetration : baseEndBearingCoeff, param1);
-                const p2Match = compareValue(r.param2Value,
-                    param2 === 'diameter' ? baseDiameter :
-                    param2 === 'pileType' ? basePileType :
-                    param2 === 'penetration' ? basePenetration : baseEndBearingCoeff, param2);
+                const p1Match = compareValue(r.param1Value, getBaseValue(param1), param1);
+                const p2Match = compareValue(r.param2Value, getBaseValue(param2), param2);
                 return p1Match && p2Match;
             }) || results[0];
             
@@ -10495,8 +12394,8 @@ ${htmlContent}
                         </div>
 
                         <!-- 주의사항 -->
-                        <div style="margin-bottom: 10px; padding: 15px; background: #fff8e1; border-left: 4px solid #ff9800; border-radius: 0 4px 4px 0;">
-                            <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 0.95rem;">주의사항</h4>
+                        <div style="margin-bottom: 10px; padding: 15px; background: #f5f5f5; border-left: 4px solid #546e7a; border-radius: 0 4px 4px 0;">
+                            <h4 style="color: #37474f; margin: 0 0 10px 0; font-size: 0.95rem;">주의사항</h4>
                             <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; color: #333;">
                                 <li style="margin-bottom: 6px;">본 추천값은 경험적 상관관계에 기반한 참고값입니다.</li>
                                 <li style="margin-bottom: 6px;">실제 설계 시에는 현장시험 결과, 실내시험 결과를 우선 적용해야 합니다.</li>
@@ -10605,7 +12504,7 @@ ${htmlContent}
 
             // 합계 행
             tableHTML += `
-                    <tr style="background: #fff3e0; font-weight: 600;">
+                    <tr style="background: #f5f5f5; font-weight: 600;">
                         <td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: right;">합계:</td>
                         <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${totalWeight.toFixed(2)}</td>
                         <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${weightedSum.toFixed(2)}</td>
@@ -10625,7 +12524,7 @@ ${htmlContent}
                                 style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
                     </div>
                     <div style="padding: 20px;">
-                        <div style="margin-bottom: 15px; padding: 12px; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
+                        <div style="margin-bottom: 15px; padding: 12px; background: #eceff1; border-radius: 4px; border-left: 3px solid #455a64;">
                             <strong>가중치 평균 공식:</strong><br>
                             <span style="font-family: serif; font-style: italic;">N<sub>avg</sub> = Σ(N<sub>i</sub> × t<sub>i</sub>) / Σt<sub>i</sub></span><br>
                             <small style="color: #555;">여기서 t<sub>i</sub>는 각 측정점의 해당 지층 두께</small>
@@ -10753,6 +12652,20 @@ ${htmlContent}
             if (document.getElementById('reviewSpliceMethod')) {
                 document.getElementById('reviewSpliceMethod').value = spliceMethod;
             }
+
+            // 설계기준 및 해머효율 초기값 설정 (전역 파라미터 또는 기본값 적용)
+            if (document.getElementById('reviewDesignStandard')) {
+                document.getElementById('reviewDesignStandard').value =
+                    globalDesignParameters.designStandard || 'structural_foundation_2015';
+            }
+            if (document.getElementById('reviewHammerEfficiency')) {
+                document.getElementById('reviewHammerEfficiency').value =
+                    globalDesignParameters.hammerEfficiency || 60;
+            }
+            if (document.getElementById('chkCompareStandards')) {
+                document.getElementById('chkCompareStandards').checked =
+                    globalDesignParameters.compareStandards || false;
+            }
         }
 
         // 설정 적용 및 계산 실행
@@ -10798,7 +12711,12 @@ ${htmlContent}
                     // 침하량 계수 추가
                     alphaS: parseFloat(document.querySelector('input[name="alphaS"]:checked')?.value || 0.67),
                     Cp: parseFloat(document.getElementById('reviewCp')?.value || 0.12),
-                    allowableSettlement: parseFloat(document.getElementById('reviewAllowableSettlement')?.value || 25)
+                    allowableSettlement: parseFloat(document.getElementById('reviewAllowableSettlement')?.value || 25),
+                    // 설계기준 및 해머효율 추가
+                    designStandard: document.getElementById('reviewDesignStandard')?.value || 'structural_foundation_2015',
+                    constructionMethod: document.getElementById('reviewConstMethod')?.value || 'cement_paste',
+                    hammerEfficiency: parseFloat(document.getElementById('reviewHammerEfficiency')?.value || 60),
+                    compareStandards: document.getElementById('chkCompareStandards')?.checked || false
                 };
 
                 // 2-1. 토질 분류 결과 수집
@@ -10881,10 +12799,13 @@ ${htmlContent}
                 console.log('[applyInputReviewSettings] 적용된 공식계수:', formulaCoeffs);
                 console.log('[applyInputReviewSettings] 적용된 계획고:', newTargetElevation);
                 console.log('[applyInputReviewSettings] 말뚝타입:', document.getElementById('pileTypeSelector')?.value);
-                console.log('[applyInputReviewSettings] 시공법:', document.getElementById('constructionMethod')?.value);
+                console.log('[applyInputReviewSettings] 시공법:', document.getElementById('reviewConstMethod')?.value);
                 console.log('[applyInputReviewSettings] 지지층:', document.getElementById('bearingLayer')?.value);
                 console.log('[applyInputReviewSettings] 안전율(압축):', document.getElementById('sfVertical')?.value);
                 console.log('[applyInputReviewSettings] 허용침하량:', document.getElementById('allowableSettlement')?.value);
+                console.log('[applyInputReviewSettings] 설계기준:', formulaCoeffs.designStandard);
+                console.log('[applyInputReviewSettings] 해머효율:', formulaCoeffs.hammerEfficiency);
+                console.log('[applyInputReviewSettings] 기준비교:', formulaCoeffs.compareStandards);
                 console.log('[applyInputReviewSettings] ========== 설정 적용 완료 ==========');
 
                 // 6. 계산 실행
@@ -11069,7 +12990,7 @@ ${htmlContent}
                 document.getElementById('steelMaterial').value = document.getElementById('reviewSteelMat')?.value || 'SKK400';
             }
 
-            document.getElementById('constructionMethod').value = document.getElementById('reviewConstMethod')?.value || 'bored';
+            document.getElementById('constructionMethod').value = document.getElementById('reviewConstMethod')?.value || 'cement_paste';
             document.getElementById('bearingLayer').value = document.getElementById('reviewBearingLayer')?.value || 'weathered_rock';
             document.getElementById('penetrationDepth').value = document.getElementById('reviewPenetrationDepth')?.value || '1.0';
             document.getElementById('spliceMethod').value = document.getElementById('reviewSpliceMethod')?.value || 'none';
@@ -11082,6 +13003,12 @@ ${htmlContent}
             document.getElementById('sfHorizontal').value = document.getElementById('reviewSfLateral')?.value || '2.0';
             document.getElementById('allowableSettlement').value = document.getElementById('reviewAllowableSettlement')?.value || '25';
             document.getElementById('endBearingCoefficient').value = document.getElementById('endBearingAlpha')?.value || '300';
+
+            // 설계기준 및 해머효율 동기화 (전역 파라미터에 저장)
+            globalDesignParameters.designStandard = document.getElementById('reviewDesignStandard')?.value || 'structural_foundation_2015';
+            globalDesignParameters.constructionMethod = document.getElementById('reviewConstMethod')?.value || 'cement_paste';
+            globalDesignParameters.hammerEfficiency = parseFloat(document.getElementById('reviewHammerEfficiency')?.value || 60);
+            globalDesignParameters.compareStandards = document.getElementById('chkCompareStandards')?.checked || false;
 
             // 사이드바 말뚝 옵션 표시 업데이트
             togglePileTypeInputs();
@@ -11656,4 +13583,14 @@ ${htmlContent}
             link.href = URL.createObjectURL(blob);
             link.download = '시추공_대시보드.csv';
             link.click();
+        }
+
+        /**
+         * 대시보드 탭으로 전환
+         */
+        function switchToDashboard() {
+            const dashboardTab = document.querySelector('[data-tab="dashboard"]');
+            if (dashboardTab) {
+                dashboardTab.click();
+            }
         }
