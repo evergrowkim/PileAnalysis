@@ -920,102 +920,179 @@
                     </div>
                 </div>
 
-                <!-- 3D 지질 시각화 모달 (Plotly.js 기반 전문가용 뷰어) -->
-                <div id="modal3DView" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f5f5f5; z-index: 10000;">
-                    <!-- 상단 헤더 바 -->
-                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 56px; background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10001; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; font-weight: bold;">3D</div>
-                            <div>
-                                <div style="color: white; font-weight: 700; font-size: 15px;">3D 지질모델 뷰어</div>
-                                <div style="color: rgba(255,255,255,0.7); font-size: 10px;">Plotly.js Geotechnical Visualization</div>
+                <!-- 공간 지반정보 분석 뷰어 (설계 의사결정 지원) -->
+                <div id="modal3DView" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 10000;">
+
+                    <!-- 좌측: 설계 검토 패널 (핵심 의사결정 정보) -->
+                    <div id="3dDecisionPanel" style="position: absolute; top: 0; left: 0; width: 320px; bottom: 0; background: #ffffff; border-right: 1px solid #e2e8f0; overflow-y: auto; z-index: 10002;">
+
+                        <!-- 헤더 -->
+                        <div style="padding: 20px; background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); color: white;">
+                            <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">공간 지반정보 분석</div>
+                            <div style="font-size: 11px; opacity: 0.8;">말뚝 설계 검토 지원</div>
+                        </div>
+
+                        <!-- 설계 검토 요약 카드 (가장 중요) -->
+                        <div style="padding: 16px;">
+                            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                    <span style="font-size: 18px;">⚠️</span>
+                                    <span style="font-weight: 700; color: #92400e; font-size: 13px;">설계 검토 필요 사항</span>
+                                </div>
+                                <div id="3dDesignAlerts" style="font-size: 12px; color: #78350f; line-height: 1.6;">
+                                    분석 중...
+                                </div>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <!-- 지층 레이어 토글 -->
-                            <span style="color: rgba(255,255,255,0.6); font-size: 10px; margin-right: 4px;">지층:</span>
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(139,115,85,0.3); padding: 3px 8px; border-radius: 4px;">
-                                <input type="checkbox" id="chk3DSurface" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                지표
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(205,133,63,0.3); padding: 3px 8px; border-radius: 4px;">
-                                <input type="checkbox" id="chk3DWeathered" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                풍화암
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(112,128,144,0.3); padding: 3px 8px; border-radius: 4px;">
-                                <input type="checkbox" id="chk3DSoftRock" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                연암
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer; background: rgba(33,150,243,0.3); padding: 3px 8px; border-radius: 4px;">
-                                <input type="checkbox" id="chk3DGWL" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                지하수위
-                            </label>
-                            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 6px;"></div>
-                            <!-- 요소 토글 -->
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer;">
-                                <input type="checkbox" id="chk3DBoreholes" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                시추공
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer;">
-                                <input type="checkbox" id="chk3DPiles" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                말뚝
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 4px; color: white; font-size: 11px; cursor: pointer;">
-                                <input type="checkbox" id="chk3DContours" onchange="update3DPlotly()" style="width: 12px; height: 12px;">
-                                등고선
-                            </label>
-                            <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 6px;"></div>
-                            <button onclick="clear3DBoreholeSelection()" style="padding: 4px 10px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; cursor: pointer; font-size: 10px;">전체 보기</button>
-                            <button onclick="reset3DPlotlyView()" style="padding: 4px 10px; background: rgba(255,193,7,0.2); color: #ffc107; border: 1px solid rgba(255,193,7,0.5); border-radius: 4px; cursor: pointer; font-size: 10px;">⟲ 리셋</button>
-                            <button onclick="close3DVisualization()" style="padding: 4px 12px; background: linear-gradient(135deg, #c62828 0%, #e53935 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 11px;">✕</button>
+
+                        <!-- 핵심 질문 1: 지지층 경사 위험 구간 -->
+                        <div style="padding: 0 16px 16px;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                                <div style="background: #f1f5f9; padding: 12px 14px; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-weight: 600; color: #1e3a5f; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="color: #dc2626;">●</span> 지지층 경사가 급한 구간은?
+                                    </div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">말뚝장 변화가 큰 위험 구간 식별</div>
+                                </div>
+                                <div id="3dSlopeRiskZones" style="padding: 14px; font-size: 11px; line-height: 1.7; color: #334155;">
+                                    분석 중...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 핵심 질문 2: 근입 깊이 검토 -->
+                        <div style="padding: 0 16px 16px;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                                <div style="background: #f1f5f9; padding: 12px 14px; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-weight: 600; color: #1e3a5f; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="color: #f59e0b;">●</span> 근입 깊이 부족 말뚝은?
+                                    </div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">지지층 근입 기준 충족 여부</div>
+                                </div>
+                                <div id="3dEmbedmentCheck" style="padding: 14px; font-size: 11px; line-height: 1.7; color: #334155;">
+                                    분석 중...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 핵심 질문 3: 말뚝장 분포 -->
+                        <div style="padding: 0 16px 16px;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                                <div style="background: #f1f5f9; padding: 12px 14px; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-weight: 600; color: #1e3a5f; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="color: #2563eb;">●</span> 말뚝장 분포 현황
+                                    </div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">위치별 말뚝장 편차 분석</div>
+                                </div>
+                                <div id="3dPileLengthDist" style="padding: 14px; font-size: 11px; line-height: 1.7; color: #334155;">
+                                    분석 중...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 핵심 질문 4: 지지력 분포 -->
+                        <div style="padding: 0 16px 16px;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                                <div style="background: #f1f5f9; padding: 12px 14px; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-weight: 600; color: #1e3a5f; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="color: #16a34a;">●</span> 지지력 부족 우려 위치?
+                                    </div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">설계하중 대비 지지력 여유율</div>
+                                </div>
+                                <div id="3dCapacityCheck" style="padding: 14px; font-size: 11px; line-height: 1.7; color: #334155;">
+                                    분석 중...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 시추공 목록 (클릭으로 상세 보기) -->
+                        <div style="padding: 0 16px 16px;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                                <div style="background: #f1f5f9; padding: 12px 14px; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-weight: 600; color: #1e3a5f; font-size: 12px;">시추공별 상세 (클릭하여 확인)</div>
+                                </div>
+                                <div id="3dBoreholeList" style="padding: 10px; display: flex; flex-wrap: wrap; gap: 6px; max-height: 180px; overflow-y: auto;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 선택된 시추공 상세 -->
+                        <div id="3dSelectedBoreholeInfo" style="padding: 0 16px 16px; display: none;">
+                            <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; overflow: hidden;">
+                                <div style="background: #3b82f6; padding: 10px 14px; color: white;">
+                                    <div style="font-weight: 600; font-size: 12px;" id="3dSelectedBHTitle">선택 시추공</div>
+                                </div>
+                                <div id="3dSelectedBoreholeDetail" style="padding: 14px; font-size: 11px; line-height: 1.8; color: #1e40af;"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Plotly 3D 플롯 컨테이너 -->
-                    <div id="3dPlotlyContainer" style="position: absolute; top: 56px; left: 0; right: 300px; bottom: 0; background: white;"></div>
-
-                    <!-- 우측 정보 패널 -->
-                    <div id="3dSidePanel" style="position: absolute; top: 56px; right: 0; width: 300px; bottom: 0; background: #ffffff; border-left: 1px solid #e0e0e0; overflow-y: auto;">
-                        <!-- 프로젝트 정보 -->
-                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
-                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">프로젝트 정보</div>
-                            <div id="3dProjectInfo" style="color: #333; font-size: 12px; line-height: 1.7;"></div>
-                        </div>
-
-                        <!-- 지층 범례 -->
-                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
-                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">지층 범례</div>
-                            <div id="3dLegendItems" style="display: flex; flex-direction: column; gap: 6px;"></div>
-                        </div>
-
-                        <!-- 설계 요약 -->
-                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
-                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">설계 요약</div>
-                            <div id="3dDesignSummary" style="color: #333; font-size: 12px; line-height: 1.7;"></div>
-                        </div>
-
-                        <!-- 시추공 선택 (클릭으로 단면 보기) -->
-                        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0;">
-                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">시추공 선택 <span style="font-weight: 400; font-size: 9px; color: #666;">(클릭시 단면 보기)</span></div>
-                            <div id="3dBoreholeList" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto;"></div>
-                        </div>
-
-                        <!-- 선택된 시추공 상세 정보 -->
-                        <div id="3dSelectedBoreholeInfo" style="padding: 16px; border-bottom: 1px solid #e0e0e0; display: none;">
-                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">선택 시추공 정보</div>
-                            <div id="3dSelectedBoreholeDetail" style="color: #333; font-size: 11px; line-height: 1.8;"></div>
-                        </div>
-
-                        <!-- 조작 안내 -->
-                        <div style="padding: 16px; background: #f9f9f9;">
-                            <div style="color: #1e3a5f; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">조작 안내</div>
-                            <div style="color: #666; font-size: 10px; line-height: 1.6;">
-                                • 드래그: 회전 | 우클릭: 이동<br>
-                                • 스크롤: 확대/축소<br>
-                                • <b>시추공 클릭: 반경 5m 단면</b>
+                    <!-- 상단 컨트롤 바 (최소화) -->
+                    <div style="position: absolute; top: 0; left: 320px; right: 0; height: 48px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 10001;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <span style="font-size: 11px; color: #64748b; font-weight: 500;">표시:</span>
+                            <div style="display: flex; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer; padding: 4px 8px; background: #f1f5f9; border-radius: 4px;">
+                                    <input type="checkbox" id="chk3DSurface" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 지표
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer; padding: 4px 8px; background: #fed7aa; border-radius: 4px;">
+                                    <input type="checkbox" id="chk3DWeathered" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 풍화암
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer; padding: 4px 8px; background: #cbd5e1; border-radius: 4px;">
+                                    <input type="checkbox" id="chk3DSoftRock" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 연암
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer; padding: 4px 8px; background: #bfdbfe; border-radius: 4px;">
+                                    <input type="checkbox" id="chk3DGWL" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 지하수위
+                                </label>
+                            </div>
+                            <div style="width: 1px; height: 20px; background: #e2e8f0;"></div>
+                            <div style="display: flex; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer;">
+                                    <input type="checkbox" id="chk3DBoreholes" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 시추공
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer;">
+                                    <input type="checkbox" id="chk3DPiles" checked onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 말뚝
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer;">
+                                    <input type="checkbox" id="chk3DContours" onchange="update3DPlotly()" style="width: 12px; height: 12px;"> 등고선
+                                </label>
                             </div>
                         </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="sel3DViewMode" onchange="change3DViewMode()" style="padding: 6px 10px; font-size: 11px; border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; color: #475569;">
+                                <option value="perspective">3D 뷰</option>
+                                <option value="plan">평면도</option>
+                                <option value="section_x">X-단면</option>
+                                <option value="section_y">Y-단면</option>
+                            </select>
+                            <button onclick="clear3DBoreholeSelection()" style="padding: 6px 12px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; font-size: 11px;">전체 보기</button>
+                            <button onclick="close3DVisualization()" style="padding: 6px 14px; background: #1e3a5f; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 11px;">닫기</button>
+                        </div>
                     </div>
+
+                    <!-- 3D 플롯 영역 -->
+                    <div id="3dPlotlyContainer" style="position: absolute; top: 48px; left: 320px; right: 0; bottom: 0; background: #f8fafc;"></div>
+
+                    <!-- 범례 (우하단 오버레이) -->
+                    <div style="position: absolute; bottom: 16px; right: 16px; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; z-index: 10001; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="font-size: 10px; font-weight: 600; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">범례</div>
+                        <div id="3dLegendItems" style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;"></div>
+                    </div>
+
+                    <!-- 조작 안내 (좌하단) -->
+                    <div style="position: absolute; bottom: 16px; left: 336px; background: rgba(255,255,255,0.9); border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; z-index: 10001;">
+                        <div style="font-size: 10px; color: #64748b;">드래그: 회전 | 스크롤: 확대 | 시추공 클릭: 상세 보기</div>
+                    </div>
+
+                    <!-- 숨김 처리된 기존 요소들 (호환성) -->
+                    <div id="3dSidePanel" style="display: none;"></div>
+                    <div id="3dProjectInfo" style="display: none;"></div>
+                    <div id="3dDesignSummary" style="display: none;"></div>
+                    <div id="3dGeotechAnalysis" style="display: none;"></div>
+                    <div id="3dGeotechContent" style="display: none;"></div>
+                    <div id="3dEmbedmentStatus" style="display: none;"></div>
+                    <div id="3dSlopeAnalysis" style="display: none;"></div>
+                    <input type="checkbox" id="chk3DEmbedCheck" checked style="display: none;">
+                    <input type="checkbox" id="chk3DNValues" style="display: none;">
                 </div>
 
                 <!-- Detailed Calculations Tab -->
