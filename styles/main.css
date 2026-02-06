@@ -887,3 +887,31 @@
             bottom: auto;
             top: calc(100% + 8px);
         }
+
+        /* ============================================================ */
+        /* 시추주상도 모달 (Borehole Log Panel)                          */
+        /* ============================================================ */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .borehole-log-panel {
+            animation: slideInRight 0.3s ease-out;
+        }
+        .nvalue-bar-row:hover {
+            background: rgba(25, 118, 210, 0.08) !important;
+            border-radius: 2px;
+        }
+        .soil-layer-box:hover {
+            z-index: 50 !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .compressed-layer:hover {
+            z-index: 60 !important;
+            min-height: 40px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+        }
