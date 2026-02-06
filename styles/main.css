@@ -743,3 +743,147 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* ============================================================
+           Toast Notification System
+           ============================================================ */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 420px;
+            pointer-events: none;
+        }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--border-primary);
+            pointer-events: auto;
+            animation: toastSlideIn 0.3s ease-out;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-width: 100%;
+            word-break: keep-all;
+        }
+
+        .toast.toast-exit {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+
+        .toast-error { border-left-color: var(--status-fail); background: #fef2f2; }
+        .toast-success { border-left-color: var(--status-pass); background: #f0fdf4; }
+        .toast-warning { border-left-color: var(--status-warning); background: #fffbeb; }
+        .toast-info { border-left-color: var(--status-info); background: #eff6ff; }
+
+        .toast-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+        .toast-body { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; margin-bottom: 2px; color: var(--text-primary); }
+        .toast-message { color: var(--text-secondary); white-space: pre-line; }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0 2px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .toast-close:hover { color: var(--text-primary); }
+
+        @keyframes toastSlideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ========================================
+           설계기준 근거 팝업 툴팁
+           ======================================== */
+        .std-ref {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: help;
+            border-bottom: 1px dashed rgba(30, 58, 95, 0.4);
+        }
+        .std-ref-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-left: 4px;
+            border-radius: 50%;
+            background: rgba(30, 58, 95, 0.1);
+            color: var(--primary-navy);
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .std-ref:hover .std-ref-icon {
+            background: var(--primary-navy);
+            color: white;
+        }
+        .std-ref-popup {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            min-width: 320px;
+            max-width: 420px;
+            background: white;
+            border: 1px solid #d0d5dd;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            padding: 14px 16px;
+            z-index: 9999;
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: #333;
+        }
+        .std-ref:hover .std-ref-popup {
+            display: block;
+        }
+        .std-ref-popup-title {
+            font-weight: 700;
+            color: var(--primary-navy);
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.88rem;
+        }
+        .std-ref-popup-source {
+            font-size: 0.78rem;
+            color: #666;
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .std-ref-popup ul {
+            margin: 4px 0;
+            padding-left: 16px;
+        }
+        .std-ref-popup li {
+            margin-bottom: 3px;
+        }
+        /* 하단 넘침 방지 */
+        .calc-step:last-child .std-ref-popup,
+        .std-ref-popup.popup-down {
+            bottom: auto;
+            top: calc(100% + 8px);
+        }

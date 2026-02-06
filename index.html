@@ -41,6 +41,9 @@
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Loading Spinner -->
     <div class="loading" id="loadingSpinner">
         <div class="spinner"></div>
@@ -87,7 +90,6 @@
                 <button class="tab-button" data-tab="overview">종합 검토</button>
                 <button class="tab-button" data-tab="borehole">시추주상도</button>
                 <button class="tab-button" data-tab="calculations">상세 계산</button>
-                <button class="tab-button" data-tab="charts">분석 결과</button>
                 <button class="tab-button" data-tab="sensitivity">민감도 분석</button>
                 <button class="tab-button" data-tab="report">보고서</button>
                 <button class="tab-button" data-tab="appendix">부록</button>
@@ -740,7 +742,6 @@
                                     <span style="font-size: 1rem;">&#8595;</span> EXCEL 내보내기
                                 </button>
                                 <input type="text" id="dashboardSearch" placeholder="시추공 검색..."
-                                       oninput="filterDashboardTable()"
                                        style="width: 180px; padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 0.85rem; background: white;">
                                 <select id="dashboardSoilFilter" onchange="filterDashboardTable()"
                                         style="padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 0.85rem; min-width: 120px; background: white;">
@@ -1148,28 +1149,10 @@
 
                         <!-- 2. Vertical Bearing Capacity -->
                         <div class="calc-section">
-                            <div class="calc-title">Step 2. 연직 지지력 계산 (구조물기초설계기준해설)</div>
+                            <div class="calc-title">Step 2. 연직 지지력 계산</div>
 
                             <div class="calc-step">
                                 <div class="calc-step-number">2-1</div>
-                                <div style="background: #eceff1; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #1a5f7a;">
-                                    <strong>적용 공식 (구조물기초설계기준해설 p.302):</strong>
-                                    <div style="margin-top: 10px; font-size: 0.95rem;">
-                                        $Q_u = 250 \times N \times A_p + 2 \times N_s \times A_s + 6.25 \times N_c \times A_c$
-                                    </div>
-                                    <div style="margin-top: 8px; font-size: 0.85rem; color: #555;">
-                                        • 선단지지력: $Q_p = 250 \times N \times A_p$ (N = (N1+N2)/2 ≤ 50)<br>
-                                        • 사질토 주면마찰력: $Q_s = 2.0 \times N_s \times A_s$<br>
-                                        • 점성토 주면마찰력: $Q_c = 6.25 \times N_c \times A_c$
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="calc-step">
-                                <div class="calc-step-number">2-2</div>
-                                <div class="calc-formula">
-                                    주면마찰력 계산 (지층별):
-                                </div>
                                 <div id="skinFrictionDetails">
                                     <!-- Dynamic content will be inserted here -->
                                 </div>
@@ -1209,16 +1192,7 @@
                             </div>
 
                             <div class="calc-step">
-                                <div class="calc-step-number">2-3</div>
-                                <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #546e7a;">
-                                    <strong>선단지지력 산정 공식 (구조물 기초 설계 기준):</strong><br>
-                                    <div style="margin-top: 8px;">
-                                        $q_p = C_{end} \times N_{tip}$ (kPa)<br>
-                                        • 타입말뚝 (폐합): $C_{end} = 300$, 상한 15,000 kPa<br>
-                                        • 매입말뚝: $C_{end} = 200$, 상한 12,000 kPa<br>
-                                        • $N_{tip}$: 선단부 상부 1D ~ 하부 4D 평균 N값 (최대 60)
-                                    </div>
-                                </div>
+                                <div class="calc-step-number">2-2</div>
                                 <div class="calc-formula" id="endBearingFormula">
                                     선단지지력 계산:
                                     $$q_p = C_{end} \times N_{tip}$$
@@ -1237,9 +1211,8 @@
                                 </div>
                             </div>
 
-                            <!-- 2-3a: 극한지지력 산정 -->
                             <div class="calc-step">
-                                <div class="calc-step-number">2-3a</div>
+                                <div class="calc-step-number">2-3</div>
                                 <div style="background: #eceff1; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #1a5f7a;">
                                     <strong>극한지지력 산정:</strong><br>
                                     $$Q_u = Q_s + Q_p$$
@@ -1252,9 +1225,8 @@
                                 </div>
                             </div>
 
-                            <!-- 2-3b: 지반 허용지지력 산정 -->
                             <div class="calc-step">
-                                <div class="calc-step-number">2-3b</div>
+                                <div class="calc-step-number">2-4</div>
                                 <div style="background: #fff8e1; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #ffc107;">
                                     <strong>지반 허용지지력 산정:</strong><br>
                                     $$Q_{a,soil} = \frac{Q_u}{FS_v}$$
@@ -1267,9 +1239,8 @@
                                 </div>
                             </div>
 
-                            <!-- 2-4: 허용지지력 결정 -->
                             <div class="calc-step">
-                                <div class="calc-step-number">2-4</div>
+                                <div class="calc-step-number">2-5</div>
                                 <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 3px solid #2196f3;">
                                     <strong>허용지지력 결정:</strong><br>
                                     $$Q_a = \min\left(Q_{a,soil}, Q_{a,material}\right)$$
@@ -1570,64 +1541,6 @@
                                     $Q_{pull} = \frac{Q_u}{FS_p} + W_p = \frac{Q_s \times 0.8}{3.0} + W_p = $ - kN
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Enhanced Charts Tab -->
-                <div class="tab-panel" id="tab-charts">
-                    <!-- Chart Controls -->
-                    <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">분석 결과</h2>
-                        <div style="display: flex; gap: 20px; align-items: center;">
-                            <div class="form-group" style="margin: 0; flex: 1; max-width: 300px;">
-                                <label class="form-label">시추공 선택</label>
-                                <select id="chartBoreholeSelect" class="form-select" onchange="updateDepthAnalysisCharts()">
-                                    <!-- Individual boreholes will be added dynamically -->
-                                </select>
-                            </div>
-                            <div style="padding: 10px 20px; background: var(--bg-tertiary); border-radius: 4px;">
-                                <strong>선택된 시추공:</strong> <span id="selectedChartTarget" style="color: var(--primary-navy); font-weight: 600;">-</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Depth Analysis Charts -->
-                    <div class="chart-grid">
-                        <div class="chart-container" style="grid-column: 1 / -1;">
-                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">
-                                깊이별 총 지지력 (주면+선단)
-                            </h3>
-                            <div class="chart-wrapper">
-                                <canvas id="depthCapacityChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 1m Unit Table -->
-                    <div class="summary-table-container" style="margin-top: 30px;">
-                        <h3 style="margin-bottom: 15px; color: var(--primary-navy);">
-                            깊이별 지지력 계산 상세 (1m 단위)
-                        </h3>
-                        <div style="overflow-x: auto;">
-                            <table class="data-table" id="depthAnalysisTable">
-                                <thead>
-                                    <tr>
-                                        <th>깊이 (m)</th>
-                                        <th>토층명</th>
-                                        <th>N값</th>
-                                        <th>주면마찰응력<br>(kPa)</th>
-                                        <th>누적 주면마찰력<br>(kN)</th>
-                                        <th>선단지지응력<br>(kPa)</th>
-                                        <th>선단지지력<br>(kN)</th>
-                                        <th>총 지지력<br>(kN)</th>
-                                        <th>비고</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="depthAnalysisTableBody">
-                                    <!-- Data will be populated here -->
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -2552,6 +2465,6 @@
     <!-- N값 상세 계산 모달 -->
     <div id="nValueDetailModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;"></div>
 
-    <script src="scripts/app.js"></script>
+    <script src="scripts/app.js?v=20260206"></script>
 </body>
 </html>

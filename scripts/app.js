@@ -5,6 +5,212 @@
         let charts = {};
         let sensitivityChart = null;
 
+        // ============================================================
+        // Debug Configuration
+        // ============================================================
+        var DEBUG_CALC = false;
+
+        // ============================================================
+        // Toast Notification System
+        // ============================================================
+        var TOAST_DEFAULTS = { duration: 4000, maxToasts: 5 };
+
+        function showToast(message, type, options) {
+            type = type || 'info';
+            options = options || {};
+            var duration = options.duration || TOAST_DEFAULTS.duration;
+            var title = options.title || '';
+
+            var container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            while (container.children.length >= TOAST_DEFAULTS.maxToasts) {
+                container.removeChild(container.firstChild);
+            }
+
+            var iconMap = { error: '\u274C', success: '\u2705', warning: '\u26A0\uFE0F', info: '\u2139\uFE0F' };
+
+            var toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+
+            var iconSpan = document.createElement('span');
+            iconSpan.className = 'toast-icon';
+            iconSpan.textContent = iconMap[type] || iconMap.info;
+            toast.appendChild(iconSpan);
+
+            var bodyDiv = document.createElement('div');
+            bodyDiv.className = 'toast-body';
+            if (title) {
+                var titleDiv = document.createElement('div');
+                titleDiv.className = 'toast-title';
+                titleDiv.textContent = title;
+                bodyDiv.appendChild(titleDiv);
+            }
+            var msgDiv = document.createElement('div');
+            msgDiv.className = 'toast-message';
+            msgDiv.textContent = message;
+            bodyDiv.appendChild(msgDiv);
+            toast.appendChild(bodyDiv);
+
+            var closeBtn = document.createElement('button');
+            closeBtn.className = 'toast-close';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.onclick = function() { dismissToast(toast); };
+            toast.appendChild(closeBtn);
+
+            container.appendChild(toast);
+
+            if (duration > 0) {
+                setTimeout(function() { dismissToast(toast); }, duration);
+            }
+            return toast;
+        }
+
+        function dismissToast(toast) {
+            if (!toast || !toast.parentNode) return;
+            toast.classList.add('toast-exit');
+            setTimeout(function() {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 300);
+        }
+
+        // ============================================================
+        // HTML Sanitization Utility
+        // ============================================================
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // ============================================================
+        // Input Validation Utilities
+        // ============================================================
+        function clampNValue(n) {
+            if (isNaN(n) || n < 0) return 0;
+            if (n > 100) return 100;
+            return n;
+        }
+
+        function validateDepth(depth, maxDepth) {
+            if (isNaN(depth) || depth < 0) return 0;
+            if (maxDepth !== undefined && depth > maxDepth) return maxDepth;
+            return depth;
+        }
+
+        function formatCalcValue(value, decimals) {
+            decimals = decimals !== undefined ? decimals : 2;
+            if (value === null || value === undefined || isNaN(value)) return '-';
+            return Number(value.toFixed(decimals));
+        }
+
+        // ============================================================
+        // 설계기준 근거 팝업 레퍼런스 데이터
+        // ============================================================
+        var STD_REFS = {
+            sf_skin_sand: {
+                title: '사질토 주면마찰력 공식',
+                content: '<ul><li><b>구조물기초(2015) 매입:</b> f<sub>s</sub> = 2.5N (N≤50), 상한 125 kPa<br>— KDS 11 50 40, 표 4.6.3</li><li><b>구조물기초(2015) 타입:</b> f<sub>s</sub> = 2.0N<sub>60</sub> (N<sub>60</sub>≤50), 상한 100 kPa<br>— KDS 11 50 40, 표 4.6.4</li><li><b>도로교(2015) 매입:</b> f<sub>s</sub> = 5N, 상한 150 kPa (일본 기준)<br>— KDS 24 14 20, 4.4.4.2</li><li><b>도로교(2015) 타입:</b> f<sub>s</sub> = 1.9N (변위말뚝)<br>— KDS 24 14 20, 4.4.4.3</li></ul>',
+                source: '구조물기초설계기준해설(2015) p.302, 도로교설계기준(2015) 해설 p.478'
+            },
+            sf_skin_clay: {
+                title: '점성토 주면마찰력 공식',
+                content: '<ul><li><b>구조물기초(2015) 매입:</b> f<sub>s</sub> = 0.8c<sub>u</sub> (c<sub>u</sub>≤125), 상한 100 kPa<br>— KDS 11 50 40, 표 4.6.3</li><li><b>구조물기초(2015) 타입:</b> f<sub>s</sub> = α·c<sub>u</sub> (α 차트)<br>— KDS 11 50 40, 표 4.6.4</li><li><b>도로교(2015) 매입:</b> f<sub>s</sub> = min(c<sub>u</sub>, 10N, 100)<br>— KDS 24 14 20, 4.4.4.2</li></ul>',
+                source: '구조물기초설계기준해설(2015) p.302-303, 도로교설계기준(2015) 해설 p.478-479'
+            },
+            sf_end_bearing: {
+                title: '선단지지력 공식',
+                content: '<ul><li><b>구조물기초(2015) 매입:</b> q<sub>p</sub> = 200·min(N, 60), 상한 12,000 kPa<br>— KDS 11 50 40, 표 4.6.5</li><li><b>구조물기초(2015) 타입:</b> q<sub>p</sub> = 300·min(N, 50), 상한 15,000 kPa</li><li><b>도로교(2015):</b> q<sub>p</sub> = C·min(N, 40), C는 시공방법별<br>— KDS 24 14 20, 4.4.4.4</li></ul><p style="margin-top:6px;">N<sub>tip</sub> = (N₁+N₂)/2<br>N₁: 선단부 N값, N₂: 선단 상부 4D 범위 평균 N값</p>',
+                source: '구조물기초설계기준해설(2015) p.304-305, 도로교설계기준(2015) 해설 p.480'
+            },
+            sf_ultimate: {
+                title: '극한지지력 산정',
+                content: 'Q<sub>u</sub> = Q<sub>s</sub> + Q<sub>p</sub><br><br>극한지지력은 주면마찰력(Q<sub>s</sub>)과 선단지지력(Q<sub>p</sub>)의 합으로 산정합니다.',
+                source: '구조물기초설계기준해설(2015) p.300, KDS 11 50 40 §4.6'
+            },
+            sf_allowable: {
+                title: '지반 허용지지력 산정',
+                content: 'Q<sub>a,soil</sub> = Q<sub>u</sub> / FS<sub>v</sub><br><br>연직 안전율(FS<sub>v</sub>)은 정적 공식법 적용 시 일반적으로 3.0을 적용합니다.',
+                source: '구조물기초설계기준해설(2015) p.311, KDS 11 50 40 §4.6.2'
+            },
+            sf_final: {
+                title: '최종 허용지지력 결정',
+                content: 'Q<sub>a</sub> = min(Q<sub>a,soil</sub>, Q<sub>a,material</sub>)<br><br>지반 허용지지력과 재료(구조) 허용지지력 중 작은 값을 최종 허용지지력으로 결정합니다.',
+                source: '구조물기초설계기준해설(2015) p.312, KDS 11 50 40 §4.6.3'
+            },
+            settle_vesic: {
+                title: '침하량 3성분 합산법 (Vesic)',
+                content: 'S<sub>t</sub> = S<sub>s</sub> + S<sub>p</sub> + S<sub>ps</sub><br><ul><li>S<sub>s</sub>: 말뚝 탄성압축</li><li>S<sub>p</sub>: 선단하중 지반침하</li><li>S<sub>ps</sub>: 주면마찰력 지반침하</li></ul>',
+                source: '구조물기초설계기준해설(2015) p.316-320, Vesic(1977)'
+            },
+            settle_ss: {
+                title: '말뚝 탄성압축 (S_s)',
+                content: 'S<sub>s</sub> = (Q<sub>ps</sub> + α<sub>s</sub>·Q<sub>fs</sub>) × L / (A<sub>p</sub> × E<sub>p</sub>)<br><br>α<sub>s</sub> = 0.67 (삼각형 분포 가정)<br><br><b>탄성계수 기준 (표 5.3.10):</b><br>• PHC: 3.92×10⁷ kN/m²<br>• 강관: 2.00×10⁸ kN/m²',
+                source: '구조물기초설계기준해설(2015) 표 5.3.10, p.317'
+            },
+            settle_sp: {
+                title: '선단 하부 지반침하 (S_p)',
+                content: 'S<sub>p</sub> = C<sub>p</sub>·Q<sub>ps</sub> / (D·q<sub>p</sub>) × 1000<br><br>C<sub>p</sub>: 경험계수 (사질토 매입말뚝 0.09~0.18, 권장 0.12)',
+                source: '구조물기초설계기준해설(2015) p.318, Vesic(1977) Table 9.7'
+            },
+            settle_sps: {
+                title: '주면마찰력 지반침하 (S_ps)',
+                content: 'C<sub>s</sub> = (0.93 + 0.16√(L/D)) × C<sub>p</sub><br>S<sub>ps</sub> = Q<sub>fs</sub>·C<sub>s</sub> / (L·q<sub>p</sub>) × 1000',
+                source: '구조물기초설계기준해설(2015) p.319, Vesic 변형식'
+            },
+            lateral_kh: {
+                title: '수평지반반력계수 (k_h)',
+                content: '<b>점성토 (후쿠오카식):</b><br>k<sub>h</sub> = 6,910 × N<sup>0.406</sup> (kN/m³)<br><br><b>사질토 (요코야마식):</b><br>k<sub>h</sub> = 2,000 × N (kN/m³)<br><br>상부 5m 구간 평균 N값 기반, 최소 10,000 kN/m³',
+                source: '도로교설계기준(2015) 해설 p.493, KDS 24 14 20 §4.4.7'
+            },
+            lateral_chang: {
+                title: 'Chang 방법 (변위 기준)',
+                content: 'β = ⁴√(k<sub>h</sub>·D / 4EI)<br>H<sub>a,Chang</sub> = 2√(EI·k<sub>h</sub>·D)·Y / FS<sub>h</sub><br><br>장말뚝 판정: βL > 2.5',
+                source: '도로교설계기준(2015) 해설 p.495, Chang(1937)'
+            },
+            lateral_broms: {
+                title: 'Broms 방법 (파괴 기준)',
+                content: 'M<sub>y</sub> = Z<sub>p</sub>·σ<sub>y</sub><br>H<sub>u</sub> = 9M<sub>y</sub> / (γ·D³·K<sub>p</sub>)<br>H<sub>a,Broms</sub> = H<sub>u</sub> / FS<sub>h</sub>',
+                source: '도로교설계기준(2015) 해설 p.497, Broms(1964)'
+            },
+            uplift: {
+                title: '인발 저항력 계산',
+                content: 'Q<sub>pull</sub> = (0.8×Q<sub>s</sub>) / FS<sub>p</sub> + W<sub>p</sub><br><br>• 인발 시 선단지지력 기여 없음<br>• 주면마찰력은 압축의 80% 적용<br>• W<sub>p</sub>: 유효자중 (부력 고려)',
+                source: '구조물기초설계기준해설(2015) p.323, KDS 11 50 40 §4.6.7'
+            }
+        };
+
+        function stdRefHTML(refKey) {
+            var ref = STD_REFS[refKey];
+            if (!ref) return '';
+            return '<span class="std-ref">' +
+                '<span class="std-ref-icon">i</span>' +
+                '<div class="std-ref-popup">' +
+                '<div class="std-ref-popup-title">' + ref.title + '</div>' +
+                ref.content +
+                '<div class="std-ref-popup-source">출처: ' + ref.source + '</div>' +
+                '</div></span>';
+        }
+
+        // ============================================================
+        // Debounce Utility
+        // ============================================================
+        function debounce(fn, delay) {
+            var timer = null;
+            return function() {
+                var context = this;
+                var args = arguments;
+                clearTimeout(timer);
+                timer = setTimeout(function() {
+                    fn.apply(context, args);
+                }, delay);
+            };
+        }
+
         // PHC Pile Database
         const PHC_PILES = {
             '400-A': { diameter: 0.4, thickness: 0.065, area: 0.0684, crossArea: 0.1256, allowable: 1120, I: 0.00126 },
@@ -370,6 +576,11 @@
         // 설계기준별 주면마찰력 계산 함수
         // ============================================================
         function calculateSkinFriction(standard, pileType, soilType, N, N60, cu, depth) {
+            N = clampNValue(N);
+            N60 = clampNValue(N60);
+            cu = (typeof cu === 'number' && isFinite(cu)) ? Math.max(0, cu) : 0;
+            depth = (typeof depth === 'number' && isFinite(depth)) ? Math.max(0, depth) : 0;
+
             const Pa = 101.325;  // 대기압 (kPa)
             let fs = 0;
             let upperLimit = 200;  // 기본 상한
@@ -513,6 +724,9 @@
         // 설계기준별 선단지지력 계산 함수
         // ============================================================
         function calculateEndBearing(standard, pileType, soilType, N, cu, constructionMethod) {
+            N = clampNValue(N);
+            cu = (typeof cu === 'number' && isFinite(cu)) ? Math.max(0, cu) : 0;
+
             let qp = 0;
             let upperLimit = 15000;
 
@@ -717,7 +931,7 @@
                 modal.style.display = 'flex';
                 // MathJax 렌더링
                 if (typeof MathJax !== 'undefined') {
-                    MathJax.typesetPromise([modal]).catch(err => console.log('MathJax error:', err));
+                    MathJax.typesetPromise([modal]).catch(err => console.warn('MathJax error:', err));
                 }
             }
         }
@@ -745,7 +959,7 @@
         // 비교 분석 모달 열기
         function showComparisonModal() {
             if (!boreholeData || boreholeData.length === 0 || !calculationResults || calculationResults.length === 0) {
-                alert('비교 분석을 위해 먼저 "설정 적용 및 분석 시작"을 실행해주세요.');
+                showToast('비교 분석을 위해 먼저 "설정 적용 및 분석 시작"을 실행해주세요.', 'warning');
                 return;
             }
 
@@ -773,7 +987,7 @@
             // MathJax 렌더링
             setTimeout(() => {
                 if (typeof MathJax !== 'undefined') {
-                    MathJax.typesetPromise([contentDiv]).catch(err => console.log('MathJax error:', err));
+                    MathJax.typesetPromise([contentDiv]).catch(err => console.warn('MathJax error:', err));
                 }
             }, 100);
         }
@@ -812,7 +1026,7 @@
                     if (thickness <= 0) return;
 
                     const N = getAverageN(layer);
-                    const soilType = determineSoilType(layer.soil_name);
+                    const soilType = getEffectiveSoilType(layer.soil_name);
                     const cu = estimateCu(N, soilType);
 
                     layers.push({
@@ -826,7 +1040,7 @@
             // 선단 지지층 정보
             const bearingLayer = borehole.soil_data?.find(l => l.soil_name?.includes('풍화암') || l.soil_name?.includes('암'));
             const tipN = bearingLayer ? Math.min(getAverageN(bearingLayer), 50) : 50;
-            const tipSoilType = bearingLayer?.soil_name?.includes('암') ? 'rock' : 'sand';
+            const tipSoilType = bearingLayer ? getEffectiveSoilType(bearingLayer.soil_name) : 'sand';
             const Ap = pile.crossArea || (Math.PI * D * D / 4);
 
             // 각 기준별 계산 결과 수집
@@ -1275,7 +1489,7 @@
 
             // MathJax 렌더링
             if (typeof MathJax !== 'undefined') {
-                MathJax.typesetPromise([modal]).catch(err => console.log('MathJax error:', err));
+                MathJax.typesetPromise([modal]).catch(err => console.warn('MathJax error:', err));
             }
         }
 
@@ -1719,6 +1933,12 @@
             initializeEventListeners();
             initializeDefaultData();
             initializeSensitivityAnalysis();
+
+            // 대시보드 검색 디바운싱
+            var dashSearch = document.getElementById('dashboardSearch');
+            if (dashSearch) {
+                dashSearch.addEventListener('input', debounce(filterDashboardTable, 250));
+            }
         });
 
         function initializeEventListeners() {
@@ -1750,7 +1970,6 @@
                         calculationResults = updatedResults;
                         updateSummaryTable();
                         updateSummaryCards();
-                        updateCharts();
                     }
                 }
                 updateGroundModificationStatus();
@@ -1778,6 +1997,19 @@
                     }
                 });
             }
+
+            // 안전율, 허용침하량 변경 시 상세 계산 표시 자동 업데이트
+            ['sfVertical', 'sfPullout', 'sfHorizontal', 'allowableSettlement'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', function() {
+                        if (calculationResults && calculationResults.length > 0) {
+                            // 안전율 변경은 재계산 필요 (Qa, Ha, Qpull 에 직접 영향)
+                            performAnalysis();
+                        }
+                    });
+                }
+            });
             
             // Allowable lateral displacement change - update calculations if already calculated
             const allowableLateralDispInput = document.getElementById('allowableLateralDisplacement');
@@ -1793,7 +2025,6 @@
                         });
                         calculationResults = updatedResults;
                 updateSummaryTable();
-                updateCharts();
                 updateCalculations();
                 updateSensitivityBoreholeSelect();
                     }
@@ -2087,7 +2318,7 @@
             if (tabName === 'calculations' || tabName === 'appendix') {
                 setTimeout(() => {
                     if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
-                        MathJax.typesetPromise().catch((err) => console.log('MathJax typeset error:', err));
+                        MathJax.typesetPromise().catch((err) => console.warn('MathJax typeset error:', err));
                     }
                 }, 100);
             }
@@ -2121,7 +2352,7 @@
                             uploadStatus.style.color = '#c62828';
                             uploadStatus.innerHTML = '❌ 파일이 비어있습니다';
                         }
-                        alert('파일이 비어있습니다.');
+                        showToast('파일이 비어있습니다.', 'error');
                         return;
                     }
 
@@ -2132,7 +2363,7 @@
                             uploadStatus.style.color = '#c62828';
                             uploadStatus.innerHTML = '❌ 유효하지 않은 JSON';
                         }
-                        alert('유효한 JSON 데이터가 아닙니다.');
+                        showToast('유효한 JSON 데이터가 아닙니다.', 'error');
                         return;
                     }
 
@@ -2143,7 +2374,7 @@
                         const boreholeCount = boreholeData ? boreholeData.length : 0;
                         uploadStatus.style.background = '#eceff1';
                         uploadStatus.style.color = '#1a5f7a';
-                        uploadStatus.innerHTML = `✅ ${file.name}<br><small>${boreholeCount}개 시추공 로드됨</small>`;
+                        uploadStatus.innerHTML = `✅ ${escapeHTML(file.name)}<br><small>${boreholeCount}개 시추공 로드됨</small>`;
                     }
                 } catch (error) {
                     console.error('File upload error:', error);
@@ -2152,7 +2383,7 @@
                         uploadStatus.style.color = '#c62828';
                         uploadStatus.innerHTML = '❌ JSON 파싱 오류';
                     }
-                    alert('파일 읽기 오류: JSON 형식이 올바르지 않습니다.\n' + error.message);
+                    showToast('파일 읽기 오류: JSON 형식이 올바르지 않습니다.\n' + error.message, 'error');
                 }
             };
 
@@ -2163,7 +2394,7 @@
                     uploadStatus.style.color = '#c62828';
                     uploadStatus.innerHTML = '❌ 파일 읽기 오류';
                 }
-                alert('파일을 읽을 수 없습니다.');
+                showToast('파일을 읽을 수 없습니다.', 'error');
             };
 
             reader.readAsText(file);
@@ -2252,7 +2483,7 @@
             if (metadata.GROUND_SURFACE_LEVEL) {
                 const val = parseElevation(metadata.GROUND_SURFACE_LEVEL);
                 if (val !== null) {
-                    console.log(`[getGroundSurfaceElevation] GROUND_SURFACE_LEVEL 파싱: "${metadata.GROUND_SURFACE_LEVEL}" → ${val}`);
+                    if (DEBUG_CALC) console.log(`[getGroundSurfaceElevation] GROUND_SURFACE_LEVEL 파싱: "${metadata.GROUND_SURFACE_LEVEL}" → ${val}`);
                     return val;
                 }
             }
@@ -2274,7 +2505,7 @@
                             }
                         }
                     }
-                    console.log(`[getGroundSurfaceElevation] Excavation_level 파싱: "${metadata.Excavation_level}" → ${val}`);
+                    if (DEBUG_CALC) console.log(`[getGroundSurfaceElevation] Excavation_level 파싱: "${metadata.Excavation_level}" → ${val}`);
                     return val;
                 }
             }
@@ -2342,7 +2573,7 @@
 
                 // Validate data structure
                 if (!Array.isArray(boreholeData) || boreholeData.length === 0) {
-                    alert('데이터 형식이 올바르지 않습니다.');
+                    showToast('데이터 형식이 올바르지 않습니다.', 'error');
                     return;
                 }
 
@@ -2419,7 +2650,7 @@
                 performAnalysis();
             } catch (error) {
                 console.error('Data processing error:', error);
-                alert('데이터 처리 중 오류가 발생했습니다: ' + error.message);
+                showToast('데이터 처리 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
 
@@ -2450,7 +2681,7 @@
                 // Check if we have data
                 if (!boreholeData || boreholeData.length === 0) {
                     hideLoading();
-                    alert('시추공 데이터가 없습니다. 파일을 업로드해주세요.');
+                    showToast('시추공 데이터가 없습니다. 파일을 업로드해주세요.', 'warning');
                     return;
                 }
 
@@ -2468,9 +2699,8 @@
                 // Update all displays
                 updateSummaryTable();
                 updateSummaryCards();
-                updateCharts();
                 updateCalculations();
-                
+
                 // Auto-draw first borehole (SVG 기반)
                 const boreholeSelect = document.getElementById('boreholeSelect');
                 if (boreholeSelect && boreholeSelect.options.length > 1) {
@@ -2488,11 +2718,9 @@
             } catch (error) {
                 hideLoading();
                 console.error('Analysis error:', error);
-                alert('분석 중 오류가 발생했습니다: ' + error.message);
+                showToast('분석 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
-
-        // Legacy functions removed - now uses updateDepthAnalysisCharts directly
 
         function calculateForBorehole(borehole) {
             try {
@@ -2526,7 +2754,7 @@
                 }
                 
                 // 디버깅: 계획고 적용 확인
-                console.log(`[calculateForBorehole] ${borehole.hole_no}: 원지반고=${originalElevation}, 계획고=${targetElevation}, 차이=${(targetElevation - originalElevation).toFixed(2)}m`);
+                if (DEBUG_CALC) console.log(`[calculateForBorehole] ${borehole.hole_no}: 원지반고=${originalElevation}, 계획고=${targetElevation}, 차이=${(targetElevation - originalElevation).toFixed(2)}m`);
 
                 // Determine ground modification type based on elevation difference
                 const elevationDiff = targetElevation - originalElevation;
@@ -2572,7 +2800,7 @@
                                 const avgN = getAverageN(layer);
                                 if (avgN >= 50) {
                                     isBearingLayer = true;
-                                    console.log(`[지지층 탐지] ${soilName}: N값=${avgN} >= 50 → 지지층으로 인정`);
+                                    if (DEBUG_CALC) console.log(`[지지층 탐지] ${soilName}: N값=${avgN} >= 50 → 지지층으로 인정`);
                                 }
                             }
                         } else if (bearingType === 'weathered_residual') {
@@ -2581,7 +2809,7 @@
                                 const avgN = getAverageN(layer);
                                 if (avgN >= 50) {
                                     isBearingLayer = true;
-                                    console.log(`[지지층 탐지] ${soilName}: N값=${avgN} >= 50 → 풍화잔류토 지지층으로 인정`);
+                                    if (DEBUG_CALC) console.log(`[지지층 탐지] ${soilName}: N값=${avgN} >= 50 → 풍화잔류토 지지층으로 인정`);
                                 }
                             }
                         } else if (bearingType === 'soft_rock') {
@@ -2600,12 +2828,16 @@
                             if (depthMatch && !bearingLayer) {
                                 bearingDepth = parseFloat(depthMatch[1]) || bearingDepth;
                                 bearingLayer = layer;
-                                console.log(`[지지층 탐지] ${borehole.hole_no}: 지지층 발견 - ${soilName}, 깊이 ${bearingDepth}m`);
+                                if (DEBUG_CALC) console.log(`[지지층 탐지] ${borehole.hole_no}: 지지층 발견 - ${soilName}, 깊이 ${bearingDepth}m`);
                             }
                         }
                     });
                 }
-                
+
+                if (!bearingLayer) {
+                    if (DEBUG_CALC) console.log(`[calculateForBorehole] ${borehole.hole_no}: 지지층 미발견 - 기본 깊이(${bearingDepth}m) 사용`);
+                }
+
                 // Pile tip depth (from original ground level, user-defined penetration into bearing layer)
                 const penetration = parseFloat(document.getElementById('penetrationDepth')?.value) || 1.0;
                 let pileTipDepth = bearingDepth + penetration;
@@ -2617,12 +2849,12 @@
                     pileTipLevel = borehole._customPileTipLevel;
                     // 커스텀 선단지지고에서 pileTipDepth 역산 (원지반고 기준 깊이)
                     pileTipDepth = originalElevation - pileTipLevel;
-                    console.log(`[calculateForBorehole] ${borehole.hole_no}: 사용자 지정 선단지지고 = EL.${pileTipLevel.toFixed(2)}m, 역산 깊이 = ${pileTipDepth.toFixed(2)}m`);
+                    if (DEBUG_CALC) console.log(`[calculateForBorehole] ${borehole.hole_no}: 사용자 지정 선단지지고 = EL.${pileTipLevel.toFixed(2)}m, 역산 깊이 = ${pileTipDepth.toFixed(2)}m`);
 
                     // 새로운 깊이에 해당하는 지지층 재결정
                     bearingLayer = findLayerAtDepth(borehole, pileTipDepth);
                     if (bearingLayer) {
-                        console.log(`[calculateForBorehole] ${borehole.hole_no}: 새 선단 위치 지층 = ${bearingLayer.soil_name}`);
+                        if (DEBUG_CALC) console.log(`[calculateForBorehole] ${borehole.hole_no}: 새 선단 위치 지층 = ${bearingLayer.soil_name}`);
                     }
                 } else {
                     pileTipLevel = originalElevation - pileTipDepth;
@@ -2684,7 +2916,7 @@
                     if (customFillParams) {
                         if (customFillParams.N > 0) {
                             fillN = customFillParams.N;
-                            console.log(`[계산] ${borehole.hole_no} 성토재 - 커스텀 N값 적용: ${fillN}`);
+                            if (DEBUG_CALC) console.log(`[계산] ${borehole.hole_no} 성토재 - 커스텀 N값 적용: ${fillN}`);
                         }
                         if (customFillParams.cu > 0) {
                             fillCu = customFillParams.cu;
@@ -2715,7 +2947,7 @@
                             Qs: fillQs
                         });
 
-                        console.log(`[계산] ${borehole.hole_no} 성토재: N=${fillN}, fs=${fillFs.toFixed(1)}, Qs=${fillQs.toFixed(1)}`);
+                        if (DEBUG_CALC) console.log(`[계산] ${borehole.hole_no} 성토재: N=${fillN}, fs=${fillFs.toFixed(1)}, Qs=${fillQs.toFixed(1)}`);
                     }
                 }
                 
@@ -2807,7 +3039,7 @@
                             customCu = customParams.cu;  // 사용자 정의 cu 사용
                         }
                         // 디버깅용 로그 (각 구간별)
-                        console.log(`[계산] ${borehole.hole_no} 깊이${midDepth.toFixed(1)}m - ${paramSource}, N=${N}, cu=${customCu || '없음'}`);
+                        if (DEBUG_CALC) console.log(`[계산] ${borehole.hole_no} 깊이${midDepth.toFixed(1)}m - ${paramSource}, N=${N}, cu=${customCu || '없음'}`);
                     }
 
                     // 주면마찰응력 계산 - 설계기준별 공식 적용
@@ -2815,34 +3047,15 @@
                     const cappedN = Math.min(N, 50);
                     const N60 = calculateN60(cappedN);  // 해머효율 보정
 
-                    // 토층 분류 판정 - 토질 분류 엔진 사용
-                    const classResult = classifySoilBehavior(layerName);
-                    const behavior = classResult.behavior;
-
-                    // 사용자가 입력 검토 탭에서 수동 분류한 경우 해당 값 사용
-                    let actualBehavior = behavior;
-                    if (soilLayerStatistics[layerName] && soilLayerStatistics[layerName].behavior) {
-                        actualBehavior = soilLayerStatistics[layerName].behavior;
-                    }
+                    // 토층 분류 판정 - 통합 토질 분류 함수 사용
+                    const soilType = getEffectiveSoilType(layerName);
 
                     // 설계기준별 주면마찰력 계산
                     let fs = 0;
-                    let soilType = '';
                     let fsFormula = '';
 
-                    // 토질 타입 결정
-                    if (actualBehavior === 'cohesive') {
-                        soilType = 'clay';
-                    } else if (actualBehavior === 'sandy') {
-                        soilType = 'sand';
-                    } else if (actualBehavior === 'rock') {
-                        soilType = 'rock';
-                    } else {
-                        soilType = 'sand';  // 기본값
-                    }
-
                     // cu 값 가져오기 (점성토용)
-                    const cu = customCu || (soilLayerStatistics[layerName]?.cu) || (6.25 * cappedN);  // 기본: Terzaghi 상관식
+                    const cu = customCu || (soilLayerStatistics[layerName]?.recommended?.cu) || (6.25 * cappedN);  // 기본: Terzaghi 상관식
 
                     // 설계기준별 공식 적용
                     fs = calculateSkinFriction(designStandard, constructionType, soilType, cappedN, N60, cu, midDepth);
@@ -2911,18 +3124,12 @@
                 // 설계 N값: (N1 + N2) / 2, 상한 50 (건축기준은 60)
                 const tipN = Math.min((N1 + N2) / 2, designStandard === 'building_foundation_2005' ? 60 : 50);
 
-                // 지지층 토질 타입 결정
+                // 지지층 토질 타입 결정 - 통합 분류 함수 사용
                 const bearingLayerName = bearingLayer?.soil_name || '';
-                const bearingClassResult = classifySoilBehavior(bearingLayerName);
-                let bearingSoilType = 'sand';  // 기본값
-                if (bearingClassResult.behavior === 'cohesive') {
-                    bearingSoilType = 'clay';
-                } else if (bearingClassResult.behavior === 'rock' || bearingLayerName.includes('암')) {
-                    bearingSoilType = 'rock';
-                }
+                const bearingSoilType = getEffectiveSoilType(bearingLayerName);
 
                 // 지지층 cu 값 (점성토인 경우)
-                const bearingCu = soilLayerStatistics[bearingLayerName]?.cu || (6.25 * tipN);
+                const bearingCu = soilLayerStatistics[bearingLayerName]?.recommended?.cu || (6.25 * tipN);
 
                 // 선단지지력 계수 및 상한값 결정
                 let endBearingCoeff = 200;
@@ -2967,10 +3174,10 @@
                 const qpFormula = getEndBearingFormula(designStandard, constructionMethod, constructionType, bearingSoilType);
 
                 // 디버깅: 선단지지력 계산 정보
-                console.log(`[선단지지력] ${borehole.hole_no}: 선단깊이=${pileTipDepth.toFixed(2)}m, 선단지지고=EL.${pileTipLevel.toFixed(2)}m`);
-                console.log(`[선단지지력] ${borehole.hole_no}: N1=${N1.toFixed(1)}, N2=${N2.toFixed(1)}, N=(N1+N2)/2=${tipN.toFixed(1)}`);
-                console.log(`[선단지지력] ${borehole.hole_no}: 설계기준=${DESIGN_STANDARDS[designStandard].shortName}, 공식=${qpFormula}`);
-                console.log(`[선단지지력] ${borehole.hole_no}: 지지층=${bearingLayerName}, 토질=${bearingSoilType}, qp=${qp.toFixed(0)}kPa, Qp=${Qp.toFixed(1)}kN`);
+                if (DEBUG_CALC) console.log(`[선단지지력] ${borehole.hole_no}: 선단깊이=${pileTipDepth.toFixed(2)}m, 선단지지고=EL.${pileTipLevel.toFixed(2)}m`);
+                if (DEBUG_CALC) console.log(`[선단지지력] ${borehole.hole_no}: N1=${N1.toFixed(1)}, N2=${N2.toFixed(1)}, N=(N1+N2)/2=${tipN.toFixed(1)}`);
+                if (DEBUG_CALC) console.log(`[선단지지력] ${borehole.hole_no}: 설계기준=${DESIGN_STANDARDS[designStandard].shortName}, 공식=${qpFormula}`);
+                if (DEBUG_CALC) console.log(`[선단지지력] ${borehole.hole_no}: 지지층=${bearingLayerName}, 토질=${bearingSoilType}, qp=${qp.toFixed(0)}kPa, Qp=${Qp.toFixed(1)}kN`);
                 
                 // Ultimate and allowable capacity - 전역 설계 파라미터 사용
                 const Qu = Qs + Qp;
@@ -3049,8 +3256,8 @@
                 const Qa = Math.min(Qa_soil, Qa_material);
 
                 // 디버깅 로그
-                console.log(`[재료지지력] ${borehole.hole_no}: L/d=${slendernessRatio.toFixed(1)}, n=${slendernessLimit.n}, μ1=${mu1.toFixed(1)}%, μ2=${mu2.toFixed(1)}%`);
-                console.log(`[재료지지력] ${borehole.hole_no}: Qap=${pile.allowable}kN, 감소율=${totalReduction.toFixed(1)}%, Qp_material=${Qa_material.toFixed(1)}kN`);
+                if (DEBUG_CALC) console.log(`[재료지지력] ${borehole.hole_no}: L/d=${slendernessRatio.toFixed(1)}, n=${slendernessLimit.n}, μ1=${mu1.toFixed(1)}%, μ2=${mu2.toFixed(1)}%`);
+                if (DEBUG_CALC) console.log(`[재료지지력] ${borehole.hole_no}: Qap=${pile.allowable}kN, 감소율=${totalReduction.toFixed(1)}%, Qp_material=${Qa_material.toFixed(1)}kN`);
                 
                 // ============================================================
                 // Settlement calculation (Vesic 3성분 합산법, 구조물 기초 설계 기준)
@@ -3122,9 +3329,9 @@
                 const St = Ss + Sp + Sps + Sc;
 
                 // 디버깅용 로그 (침하량 상세)
-                console.log(`[침하량] ${borehole.hole_no}: tipRatio=${tipRatio.toFixed(2)}, Qps=${Qps.toFixed(1)}kN, Qfs=${Qfs.toFixed(1)}kN`);
-                console.log(`[침하량] αs=${alpha_s}, Cp=${Cp}, qp=${qp_settlement.toFixed(0)}kN/m², 허용침하=${settlementCoeffs.allowableSettlement}mm`);
-                console.log(`[침하량] Ss=${Ss.toFixed(2)}mm, Sp=${Sp.toFixed(2)}mm, Sps=${Sps.toFixed(2)}mm, St=${St.toFixed(2)}mm`);
+                if (DEBUG_CALC) console.log(`[침하량] ${borehole.hole_no}: tipRatio=${tipRatio.toFixed(2)}, Qps=${Qps.toFixed(1)}kN, Qfs=${Qfs.toFixed(1)}kN`);
+                if (DEBUG_CALC) console.log(`[침하량] αs=${alpha_s}, Cp=${Cp}, qp=${qp_settlement.toFixed(0)}kN/m², 허용침하=${settlementCoeffs.allowableSettlement}mm`);
+                if (DEBUG_CALC) console.log(`[침하량] Ss=${Ss.toFixed(2)}mm, Sp=${Sp.toFixed(2)}mm, Sps=${Sps.toFixed(2)}mm, St=${St.toFixed(2)}mm`);
 
                 // 기존 변수명 호환을 위해 Se 유지
                 const Se = Ss;
@@ -3787,7 +3994,7 @@
                 ` : '';
 
                 row.innerHTML = `
-                    <td style="font-weight: 600;">${result.borehole}</td>
+                    <td style="font-weight: 600;">${escapeHTML(result.borehole)}</td>
                     <td>${elevation.toFixed(1)}</td>
                     <td>
                         <input type="number"
@@ -3836,243 +4043,6 @@
                 tbody.appendChild(row);
             });
         }
-
-        function updateCharts() {
-            if (!calculationResults || calculationResults.length === 0) return;
-            
-            // Populate chart borehole select
-            const chartSelect = document.getElementById('chartBoreholeSelect');
-            chartSelect.innerHTML = '';
-            
-            boreholeData.forEach((borehole, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = borehole.hole_no;
-                if (index === 0) option.selected = true;
-                chartSelect.appendChild(option);
-            });
-            
-            // Initial chart rendering
-            updateDepthAnalysisCharts();
-        }
-
-        // 분석결과 그래프에서 산정 불가 메시지 표시
-        function showInvalidChartMessage(result) {
-            // 차트 영역 클리어 및 메시지 표시
-            const chartCanvas = document.getElementById('depthCapacityChart');
-            if (chartCanvas) {
-                // 기존 차트 제거
-                if (charts.depthCapacity) {
-                    charts.depthCapacity.destroy();
-                    charts.depthCapacity = null;
-                }
-
-                // 차트 컨테이너에 메시지 표시
-                const container = chartCanvas.parentElement;
-                if (container) {
-                    // 캔버스 숨기고 메시지 표시
-                    chartCanvas.style.display = 'none';
-
-                    // 기존 메시지 제거
-                    const existingMsg = container.querySelector('.invalid-chart-message');
-                    if (existingMsg) existingMsg.remove();
-
-                    const msgDiv = document.createElement('div');
-                    msgDiv.className = 'invalid-chart-message';
-                    msgDiv.innerHTML = `
-                        <div style="
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            height: 300px;
-                            background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
-                            border: 2px dashed #c62828;
-                            border-radius: 12px;
-                            color: #c62828;
-                        ">
-                            <div style="font-size: 40px; margin-bottom: 10px; font-weight: bold;">!</div>
-                            <h4 style="margin: 0 0 10px 0;">말뚝 지지력 산정 불가</h4>
-                            <p style="margin: 0; color: #888; font-size: 0.9rem;">
-                                ${result.invalidReason || '말뚝 길이가 0 이하로 분석 결과를 표시할 수 없습니다.'}
-                            </p>
-                        </div>
-                    `;
-                    container.appendChild(msgDiv);
-                }
-            }
-
-            // 테이블도 클리어
-            const tbody = document.getElementById('depthAnalysisTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="9" style="text-align: center; color: #c62828; padding: 40px; background: #fff5f5;">
-                            <strong>말뚝 지지력 산정 불가</strong><br>
-                            <span style="color: #888; font-size: 0.9rem;">${result.invalidReason || '말뚝 길이가 0 이하입니다.'}</span>
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-
-        function updateDepthAnalysisCharts() {
-            const index = parseInt(document.getElementById('chartBoreholeSelect').value);
-            if (isNaN(index) || !boreholeData[index] || !calculationResults[index]) return;
-
-            const borehole = boreholeData[index];
-            const result = calculationResults[index];
-            document.getElementById('selectedChartTarget').textContent = borehole.hole_no;
-
-            // 말뚝 길이가 0 이하인 경우 - 산정 불가 메시지 표시
-            if (result.isInvalid || result.pileLength <= 0) {
-                showInvalidChartMessage(result);
-                return;
-            }
-
-            // 차트 캔버스 다시 표시 (이전에 숨겨졌을 수 있음)
-            const chartCanvas = document.getElementById('depthCapacityChart');
-            if (chartCanvas) {
-                chartCanvas.style.display = 'block';
-                const container = chartCanvas.parentElement;
-                const existingMsg = container?.querySelector('.invalid-chart-message');
-                if (existingMsg) existingMsg.remove();
-            }
-
-            // Calculate depth-by-depth data (1m intervals)
-            const pile = getCurrentPile();
-            const D = pile.diameter;
-            const pileLength = result.pileTipDepth || 20;
-            const depthData = [];
-            
-            // Get ground modification info from result
-            const groundMod = result.groundMod || 'none';
-            const fillHeight = result.fillHeight || 0;
-            const excavationDepth = result.excavationDepth || 0;
-            const fillN = parseFloat(document.getElementById('fillNValue').value || 8);
-            
-            // Determine pile start position in original ground coordinates
-            let pileStartDepthInGround = 0;
-            
-            if (groundMod === 'fill') {
-                pileStartDepthInGround = -fillHeight; // Negative: pile starts above original ground
-            } else if (groundMod === 'excavation') {
-                pileStartDepthInGround = excavationDepth; // Positive: pile starts below original ground
-            }
-            
-            let cumulativeFriction = 0;
-
-            // 커스텀 파라미터에서 깊이에 해당하는 값 찾기
-            function getCustomParamsAtDepth(depth) {
-                if (borehole._customLayerList && borehole._customLayerList.length > 0) {
-                    for (const layer of borehole._customLayerList) {
-                        if (depth >= layer.depthFrom && depth < layer.depthTo) {
-                            return layer;
-                        }
-                    }
-                }
-                return null;
-            }
-
-            // Start from top of pile (pileDepth=0 is at pile top)
-            for (let pileDepth = 0; pileDepth <= Math.ceil(pileLength); pileDepth += 1) {
-                const actualDepthInGround = pileStartDepthInGround + pileDepth;
-
-                let currentLayer = null;
-                let avgN = 15;
-                let layerName = '-';
-                let customCu = null;
-
-                // Determine which zone/layer we're in
-                if (groundMod === 'fill' && actualDepthInGround < 0) {
-                    // Still in fill zone (above original ground)
-                    layerName = '성토재';
-                    avgN = fillN;
-
-                    // 커스텀 성토재 값 확인 (_customLayerList 우선)
-                    const fillCustom = getCustomParamsAtDepth(actualDepthInGround);
-                    if (fillCustom && fillCustom.layerName === '성토재') {
-                        if (fillCustom.N > 0) avgN = fillCustom.N;
-                        if (fillCustom.cu > 0) customCu = fillCustom.cu;
-                    } else if (borehole._customParams && borehole._customParams['성토재']) {
-                        const customFill = borehole._customParams['성토재'];
-                        if (customFill.N > 0) avgN = customFill.N;
-                        if (customFill.cu > 0) customCu = customFill.cu;
-                    }
-                } else {
-                    // In original ground (or below for excavation case)
-                    currentLayer = findLayerAtDepth(borehole, actualDepthInGround);
-                    avgN = currentLayer ? getAverageN(currentLayer) : 15;
-                    layerName = currentLayer ? currentLayer.soil_name : '-';
-
-                    // 커스텀 파라미터 확인
-                    const customParams = getCustomParamsAtDepth(actualDepthInGround);
-                    if (customParams) {
-                        if (customParams.N > 0) avgN = customParams.N;
-                        if (customParams.cu > 0) customCu = customParams.cu;
-                        layerName = customParams.layerName || layerName;
-                    } else if (borehole._customParams && borehole._customParams[layerName]) {
-                        const customByName = borehole._customParams[layerName];
-                        if (customByName.N > 0) avgN = customByName.N;
-                        if (customByName.cu > 0) customCu = customByName.cu;
-                    }
-                }
-
-                // Calculate skin friction stress for this 1m segment
-                const As = Math.PI * D * 1.0; // 1m segment
-                let fs = 0;
-
-                if (groundMod === 'fill' && actualDepthInGround < 0) {
-                    // Fill zone - use 2N method (사질토 기준)
-                    fs = Math.min(2 * avgN, 200);
-                } else if (currentLayer) {
-                    // Original ground
-                    if (currentLayer.soil_name.includes('점토') || currentLayer.soil_name.includes('실트')) {
-                        const cu = customCu !== null ? customCu : 12 * avgN;
-                        const alpha = cu < 25 ? 1.0 : cu < 50 ? 0.9 : cu < 100 ? 0.7 : 0.5;
-                        fs = Math.min(alpha * cu, 150);
-                    } else {
-                        // 사질토: 2N법
-                        fs = Math.min(2 * avgN, 200);
-                    }
-                }
-
-                const method = document.getElementById('constructionMethod').value;
-                const methodFactor = method === 'driven' ? 1.0 : 0.7;
-                fs *= methodFactor;
-
-                const segmentFriction = fs * As;
-                cumulativeFriction += segmentFriction;
-
-                // Calculate end bearing for this depth (only relevant at pile tip)
-                const Ap = Math.PI * D * D / 4;
-                const endBearingCoeff = parseFloat(document.getElementById('endBearingCoefficient').value) || 300;
-                const qp = Math.min(endBearingCoeff * avgN, 10000);
-                const Qp = qp * Ap;
-
-                const totalCapacity = cumulativeFriction + Qp;
-
-                depthData.push({
-                    depth: actualDepthInGround,
-                    pileDepth: pileDepth,
-                    layer: layerName,
-                    N: avgN,
-                    fs: fs,
-                    cumulativeFriction: cumulativeFriction,
-                    qp: qp,
-                    Qp: Qp,
-                    total: totalCapacity,
-                    isTipAtTarget: Math.abs(actualDepthInGround - pileLength) < 0.5,
-                    isInFill: (groundMod === 'fill' && actualDepthInGround < 0),
-                    isInExcavation: false // Excavation zone has no pile, so always false here
-                });
-            }
-            
-            // Update charts
-            updateDepthCapacityChart(depthData);
-            updateDepthAnalysisTable(depthData, result);
-        }
-
         function findLayerAtDepth(borehole, depth) {
             if (!borehole.soil_data) return null;
             
@@ -4087,852 +4057,6 @@
                 }
             }
             return null;
-        }
-
-        function updateDepthCapacityChart(depthData) {
-            const ctx = document.getElementById('depthCapacityChart');
-            if (!ctx) return;
-
-            if (charts.depthCapacity) charts.depthCapacity.destroy();
-
-            // 지표고 EL 가져오기
-            const index = parseInt(document.getElementById('chartBoreholeSelect').value);
-            let groundEL = 0;
-            if (!isNaN(index) && boreholeData[index]) {
-                groundEL = getGroundSurfaceElevation(boreholeData[index].metadata) || 0;
-            }
-
-            // 선단지지력과 주면마찰력 최대값 계산 (비율 확인)
-            const maxQp = Math.max(...depthData.map(d => d.Qp));
-            const maxQs = Math.max(...depthData.map(d => d.cumulativeFriction));
-            const ratio = maxQp / (maxQs || 1);
-
-            // 선단지지력이 너무 큰 경우 별도 스케일 사용 여부 결정
-            const useDualScale = ratio > 3;
-
-            // 깊이 레이블 생성 (GL과 EL 모두 표시)
-            const depthLabels = depthData.map(d => {
-                const glValue = d.depth;
-                const elValue = groundEL - d.depth;
-                if (d.depth < 0) {
-                    // 성토 구간
-                    return `성토 ${(-d.depth).toFixed(0)}m (EL.${elValue.toFixed(1)})`;
-                }
-                return `GL-${d.depth.toFixed(0)}m (EL.${elValue.toFixed(1)})`;
-            });
-
-            // 선단지지력 스케일 조정 (비율이 너무 큰 경우)
-            let adjustedQpData = depthData.map(d => d.Qp);
-            let qpLabel = '선단지지력 Qp (kN)';
-            if (useDualScale) {
-                // 선단지지력을 로그 스케일로 표시하거나 별도 처리
-                qpLabel = `선단지지력 Qp (kN) [max=${maxQp.toFixed(0)}]`;
-            }
-
-            charts.depthCapacity = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: depthLabels,
-                    datasets: [
-                        {
-                            type: 'bar',
-                            label: '누적 주면마찰력 Qs (kN)',
-                            data: depthData.map(d => d.cumulativeFriction),
-                            backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                            borderColor: 'rgba(46, 125, 50, 1)',
-                            borderWidth: 1,
-                            order: 2,
-                            stack: 'capacity'
-                        },
-                        {
-                            type: 'bar',
-                            label: qpLabel,
-                            data: adjustedQpData,
-                            backgroundColor: 'rgba(30, 58, 95, 0.7)',
-                            borderColor: 'rgba(30, 58, 95, 1)',
-                            borderWidth: 1,
-                            order: 2,
-                            stack: 'endBearing'
-                        },
-                        {
-                            type: 'line',
-                            label: '총 극한지지력 Qu (kN)',
-                            data: depthData.map(d => d.total),
-                            borderColor: 'rgba(198, 40, 40, 1)',
-                            backgroundColor: 'rgba(198, 40, 40, 0.1)',
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0.3,
-                            pointRadius: 5,
-                            pointHoverRadius: 8,
-                            pointBackgroundColor: 'rgba(198, 40, 40, 1)',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            order: 1
-                        }
-                    ]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '지지력 (kN)',
-                                font: { weight: 'bold', size: 12 }
-                            },
-                            beginAtZero: true,
-                            stacked: false,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '말뚝 깊이 (GL)',
-                                font: { weight: 'bold', size: 12 }
-                            },
-                            stacked: false,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            backgroundColor: 'rgba(30, 58, 95, 0.95)',
-                            titleFont: { size: 13, weight: 'bold' },
-                            bodyFont: { size: 12 },
-                            padding: 12,
-                            callbacks: {
-                                title: function(context) {
-                                    const dataIndex = context[0].dataIndex;
-                                    const dataPoint = depthData[dataIndex];
-                                    const elValue = groundEL - dataPoint.depth;
-                                    if (dataPoint.depth < 0) {
-                                        return `성토 구간: ${(-dataPoint.depth).toFixed(1)}m (EL.${elValue.toFixed(2)}m)`;
-                                    }
-                                    return `심도: GL-${dataPoint.depth.toFixed(1)}m (EL.${elValue.toFixed(2)}m)`;
-                                },
-                                afterLabel: function(context) {
-                                    const dataIndex = context.dataIndex;
-                                    const dataPoint = depthData[dataIndex];
-                                    if (dataPoint) {
-                                        return [
-                                            `지층: ${dataPoint.layer}`,
-                                            `N값: ${dataPoint.N}`,
-                                            `주면마찰응력 fs: ${dataPoint.fs.toFixed(1)} kPa`
-                                        ];
-                                    }
-                                    return '';
-                                }
-                            }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                font: { size: 11 },
-                                usePointStyle: true,
-                                padding: 15
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateDepthAnalysisTable(depthData, result) {
-            const tbody = document.getElementById('depthAnalysisTableBody');
-            tbody.innerHTML = '';
-
-            // 지표고 EL 가져오기
-            const index = parseInt(document.getElementById('chartBoreholeSelect').value);
-            let groundEL = 0;
-            if (!isNaN(index) && boreholeData[index]) {
-                groundEL = getGroundSurfaceElevation(boreholeData[index].metadata) || 0;
-            }
-
-            depthData.forEach(data => {
-                const row = document.createElement('tr');
-                if (data.isTipAtTarget) {
-                    row.style.backgroundColor = 'rgba(46, 125, 50, 0.15)';
-                    row.style.fontWeight = '600';
-                }
-
-                // Highlight fill zone with different color
-                if (data.depth < 0) {
-                    row.style.backgroundColor = 'rgba(139, 115, 85, 0.15)';
-                }
-
-                // GL과 EL 값 계산
-                const elValue = groundEL - data.depth;
-                let depthLabel;
-                if (data.depth < 0) {
-                    depthLabel = `성토 ${(-data.depth).toFixed(1)}m`;
-                } else {
-                    depthLabel = `GL-${data.depth.toFixed(1)}m`;
-                }
-                const elLabel = `EL.${elValue.toFixed(2)}m`;
-
-                row.innerHTML = `
-                    <td>${depthLabel}<br><small style="color:#666;">${elLabel}</small></td>
-                    <td>${data.layer}</td>
-                    <td>${data.N}</td>
-                    <td>${data.fs.toFixed(1)}</td>
-                    <td>${data.cumulativeFriction.toFixed(0)}</td>
-                    <td>${data.qp.toFixed(0)}</td>
-                    <td>${data.Qp.toFixed(0)}</td>
-                    <td style="font-weight: 600; color: #1e3a5f;">${data.total.toFixed(0)}</td>
-                    <td>${data.isTipAtTarget ? '<span style="color: var(--status-pass); font-weight:bold;">● 말뚝선단</span>' : ''}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function updateComparisonCharts() {
-            // Update chart titles
-            document.getElementById('capacityChartTitle').textContent = '전체 시추공 지지력 구성 비교';
-            document.getElementById('settlementChartTitle').textContent = '전체 시추공 침하량 구성 비교';
-            document.getElementById('safetyChartTitle').textContent = '전체 시추공 안전율 검증';
-            document.getElementById('nValueChartTitle').textContent = '시추공별 평균 N값 비교';
-            document.getElementById('frictionChartTitle').textContent = '시추공별 마찰력 기여도 비교';
-            document.getElementById('loadSettlementChartTitle').textContent = '시추공별 Load-Settlement Curves';
-            
-            // 1. Bearing Capacity Comparison Chart (개선됨)
-            const ctx1 = document.getElementById('capacityChart');
-            if (ctx1) {
-                const chartCtx = ctx1.getContext('2d');
-                if (charts.capacity) charts.capacity.destroy();
-
-                // 선단지지력과 주면마찰력 비율 계산
-                const qsValues = calculationResults.map(r => r.Qs || 0);
-                const qpValues = calculationResults.map(r => r.Qp || 0);
-                const totalValues = calculationResults.map(r => (r.Qs || 0) + (r.Qp || 0));
-                const maxTotal = Math.max(...totalValues);
-
-                // 비율 표시용 데이터 계산
-                const qsRatios = calculationResults.map((r, i) => {
-                    const total = (r.Qs || 0) + (r.Qp || 0);
-                    return total > 0 ? ((r.Qs || 0) / total * 100).toFixed(1) : 0;
-                });
-
-                charts.capacity = new Chart(chartCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: calculationResults.map(r => r.borehole),
-                        datasets: [
-                            {
-                                label: '주면마찰력 Qs (kN)',
-                                data: qsValues,
-                                backgroundColor: 'rgba(46, 125, 50, 0.75)',
-                                borderColor: '#1a5f7a',
-                                borderWidth: 1
-                            },
-                            {
-                                label: '선단지지력 Qp (kN)',
-                                data: qpValues,
-                                backgroundColor: 'rgba(30, 58, 95, 0.75)',
-                                borderColor: '#1e3a5f',
-                                borderWidth: 1
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: { display: false },
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    font: { size: 11 },
-                                    usePointStyle: true
-                                }
-                            },
-                            tooltip: {
-                                backgroundColor: 'rgba(30, 58, 95, 0.95)',
-                                callbacks: {
-                                    afterBody: function(context) {
-                                        const idx = context[0].dataIndex;
-                                        const r = calculationResults[idx];
-                                        const total = (r.Qs || 0) + (r.Qp || 0);
-                                        const qsRatio = total > 0 ? ((r.Qs || 0) / total * 100).toFixed(1) : 0;
-                                        const qpRatio = total > 0 ? ((r.Qp || 0) / total * 100).toFixed(1) : 0;
-                                        return [
-                                            '',
-                                            `총 극한지지력: ${total.toFixed(0)} kN`,
-                                            `주면마찰력 비율: ${qsRatio}%`,
-                                            `선단지지력 비율: ${qpRatio}%`
-                                        ];
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: true,
-                                title: {
-                                    display: true,
-                                    text: '시추공',
-                                    font: { weight: 'bold' }
-                                }
-                            },
-                            y: {
-                                stacked: true,
-                                title: {
-                                    display: true,
-                                    text: '극한지지력 Qu (kN)',
-                                    font: { weight: 'bold' }
-                                },
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.1)'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 2. Settlement Comparison Chart
-            const ctx2 = document.getElementById('settlementChart');
-            if (ctx2) {
-                const chartCtx = ctx2.getContext('2d');
-                if (charts.settlement) charts.settlement.destroy();
-                
-                charts.settlement = new Chart(chartCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: calculationResults.map(r => r.borehole),
-                        datasets: [
-                            {
-                                label: '탄성침하 (Se)',
-                                data: calculationResults.map(r => r.Se || 0),
-                                backgroundColor: 'rgba(54, 162, 235, 0.7)'
-                            },
-                            {
-                                label: '선단침하 (Sp)',
-                                data: calculationResults.map(r => (r.Sp || 0) - (r.Se || 0)),
-                                backgroundColor: 'rgba(255, 206, 86, 0.7)'
-                            },
-                            {
-                                label: '압밀침하 (Sc)',
-                                data: calculationResults.map(r => r.Sc || 0),
-                                backgroundColor: 'rgba(255, 99, 132, 0.7)'
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: true },
-                            y: { 
-                                stacked: true,
-                                title: { display: true, text: '침하량 (mm)' }
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 3. Safety Factor Chart
-            const ctx3 = document.getElementById('safetyChart');
-            if (ctx3) {
-                const chartCtx = ctx3.getContext('2d');
-                if (charts.safety) charts.safety.destroy();
-                
-                const FSv = parseFloat(document.getElementById('sfVertical').value) || 3.0;
-                
-                charts.safety = new Chart(chartCtx, {
-                    type: 'line',
-                    data: {
-                        labels: calculationResults.map(r => r.borehole),
-                        datasets: [
-                            {
-                                label: '실제 안전율',
-                                data: calculationResults.map(r => r.actualFS || 0),
-                                borderColor: '#1e3a5f',
-                                backgroundColor: 'rgba(30, 58, 95, 0.1)',
-                                borderWidth: 2,
-                                pointRadius: 5,
-                                tension: 0.2
-                            },
-                            {
-                                label: '요구 안전율',
-                                data: calculationResults.map(() => FSv),
-                                borderColor: '#c62828',
-                                borderDash: [5, 5],
-                                borderWidth: 2,
-                                pointRadius: 0
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' } },
-                        scales: {
-                            y: {
-                                title: { display: true, text: '안전율' },
-                                min: 0
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 4. Average N-value Comparison
-            const ctx4 = document.getElementById('nValueChart');
-            if (ctx4) {
-                const chartCtx = ctx4.getContext('2d');
-                if (charts.nValue) charts.nValue.destroy();
-                
-                // Calculate average N-values for each borehole
-                const avgNValues = boreholeData.map(borehole => {
-                    let totalN = 0;
-                    let count = 0;
-                    if (borehole.soil_data) {
-                        borehole.soil_data.forEach(layer => {
-                            const avgN = getAverageN(layer);
-                            if (avgN > 0) {
-                                totalN += avgN;
-                                count++;
-                            }
-                        });
-                    }
-                    return count > 0 ? totalN / count : 0;
-                });
-                
-                charts.nValue = new Chart(chartCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: boreholeData.map(b => b.hole_no),
-                        datasets: [{
-                            label: '평균 N값',
-                            data: avgNValues,
-                            backgroundColor: 'rgba(44, 78, 126, 0.7)',
-                            borderColor: '#2c4e7e',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                title: { display: true, text: 'N값' },
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 5. Friction Contribution Comparison
-            const ctx5 = document.getElementById('frictionChart');
-            if (ctx5) {
-                const chartCtx = ctx5.getContext('2d');
-                if (charts.friction) charts.friction.destroy();
-                
-                const frictionRatios = calculationResults.map(r => {
-                    const total = (r.Qu || 1);
-                    return {
-                        friction: ((r.Qs || 0) / total * 100),
-                        bearing: ((r.Qp || 0) / total * 100)
-                    };
-                });
-                
-                charts.friction = new Chart(chartCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: calculationResults.map(r => r.borehole),
-                        datasets: [
-                            {
-                                label: '주면마찰 비율 (%)',
-                                data: frictionRatios.map(r => r.friction),
-                                backgroundColor: 'rgba(44, 78, 126, 0.7)'
-                            },
-                            {
-                                label: '선단지지 비율 (%)',
-                                data: frictionRatios.map(r => r.bearing),
-                                backgroundColor: 'rgba(46, 125, 50, 0.7)'
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: true },
-                            y: {
-                                stacked: true,
-                                title: { display: true, text: '기여도 (%)' },
-                                max: 100
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 6. Load-Settlement Curves
-            const ctx6 = document.getElementById('loadSettlementChart');
-            if (ctx6) {
-                const chartCtx = ctx6.getContext('2d');
-                if (charts.loadSettlement) charts.loadSettlement.destroy();
-                
-                const datasets = calculationResults.map((result, index) => {
-                    const loads = [];
-                    const settlements = [];
-                    const maxLoad = result.Qu || 2000;
-                    
-                    for (let i = 0; i <= 20; i++) {
-                        const load = (maxLoad / 20) * i;
-                        loads.push(load);
-                        const s = (load / maxLoad) * 25 / (1 + (load / maxLoad));
-                        settlements.push(s);
-                    }
-                    
-                    return {
-                        label: result.borehole,
-                        data: loads.map((load, i) => ({ x: load, y: settlements[i] })),
-                        borderColor: `hsl(${index * 60}, 70%, 50%)`,
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        showLine: true,
-                        pointRadius: 0
-                    };
-                });
-                
-                charts.loadSettlement = new Chart(chartCtx, {
-                    type: 'scatter',
-                    data: { datasets: datasets },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                type: 'linear',
-                                title: { display: true, text: '하중 (kN)' }
-                            },
-                            y: {
-                                title: { display: true, text: '침하량 (mm)' }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        function updateIndividualCharts(borehole, result) {
-            const boreholeNo = borehole.hole_no;
-            
-            // Update chart titles
-            document.getElementById('capacityChartTitle').textContent = `${boreholeNo} 지지력 구성`;
-            document.getElementById('settlementChartTitle').textContent = `${boreholeNo} 침하량 구성`;
-            document.getElementById('safetyChartTitle').textContent = `${boreholeNo} 하중-안전율 관계`;
-            document.getElementById('nValueChartTitle').textContent = `${boreholeNo} 깊이별 N값 분포`;
-            document.getElementById('frictionChartTitle').textContent = `${boreholeNo} 층별 마찰력 기여도`;
-            document.getElementById('loadSettlementChartTitle').textContent = `${boreholeNo} Load-Settlement Curve`;
-            
-            // 1. Individual Bearing Capacity
-            const ctx1 = document.getElementById('capacityChart');
-            if (ctx1) {
-                const chartCtx = ctx1.getContext('2d');
-                if (charts.capacity) charts.capacity.destroy();
-                
-                charts.capacity = new Chart(chartCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['주면마찰력 (Qs)', '선단지지력 (Qp)'],
-                        datasets: [{
-                            data: [result.Qs || 0, result.Qp || 0],
-                            backgroundColor: [
-                                'rgba(44, 78, 126, 0.7)',
-                                'rgba(46, 125, 50, 0.7)'
-                            ],
-                            borderColor: ['#2c4e7e', '#1a5f7a'],
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const value = context.raw;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                        return `${context.label}: ${value.toFixed(0)} kN (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 2. N-value Distribution with Depth
-            const ctx2 = document.getElementById('nValueChart');
-            if (ctx2) {
-                const chartCtx = ctx2.getContext('2d');
-                if (charts.nValue) charts.nValue.destroy();
-                
-                const depths = [];
-                const nValues = [];
-                const colors = [];
-                
-                if (borehole.soil_data) {
-                    borehole.soil_data.forEach(layer => {
-                        const depthMatch = layer.depth_range?.match(/([\d.]+)~([\d.]+)m/);
-                        if (depthMatch) {
-                            const depthFrom = parseFloat(depthMatch[1]);
-                            const depthTo = parseFloat(depthMatch[2]);
-                            const midDepth = (depthFrom + depthTo) / 2;
-                            const avgN = getAverageN(layer);
-                            
-                            depths.push(-midDepth); // Negative for downward
-                            nValues.push(avgN);
-                            
-                            // Color based on N-value
-                            if (avgN < 10) colors.push('rgba(255, 99, 132, 0.7)');
-                            else if (avgN < 30) colors.push('rgba(255, 206, 86, 0.7)');
-                            else if (avgN < 50) colors.push('rgba(54, 162, 235, 0.7)');
-                            else colors.push('rgba(46, 125, 50, 0.7)');
-                        }
-                    });
-                }
-                
-                charts.nValue = new Chart(chartCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: depths.map(d => `${Math.abs(d).toFixed(1)}m`),
-                        datasets: [{
-                            label: 'N값',
-                            data: nValues,
-                            backgroundColor: colors,
-                            borderColor: colors.map(c => c.replace('0.7', '1')),
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                title: { display: true, text: 'N값' },
-                                beginAtZero: true
-                            },
-                            y: {
-                                title: { display: true, text: '깊이' },
-                                reverse: false
-                            }
-                        },
-                        plugins: {
-                            legend: { display: false }
-                        }
-                    }
-                });
-            }
-            
-            // 3. Layer Friction Contribution
-            const ctx3 = document.getElementById('frictionChart');
-            if (ctx3) {
-                const chartCtx = ctx3.getContext('2d');
-                if (charts.friction) charts.friction.destroy();
-                
-                if (result.skinFrictionDetails && result.skinFrictionDetails.length > 0) {
-                    const labels = result.skinFrictionDetails.map(d => `${d.depth}m\n${d.layer}`);
-                    const data = result.skinFrictionDetails.map(d => d.Qs || 0);
-                    
-                    charts.friction = new Chart(chartCtx, {
-                        type: 'pie',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                data: data,
-                                backgroundColor: [
-                                    'rgba(255, 99, 132, 0.7)',
-                                    'rgba(54, 162, 235, 0.7)',
-                                    'rgba(255, 206, 86, 0.7)',
-                                    'rgba(75, 192, 192, 0.7)',
-                                    'rgba(153, 102, 255, 0.7)'
-                                ],
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'right' },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const value = context.raw;
-                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                            return `${value.toFixed(1)} kN (${percentage}%)`;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                } else {
-                    // Show empty state
-                    charts.friction = new Chart(chartCtx, {
-                        type: 'bar',
-                        data: { labels: ['No Data'], datasets: [] },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false
-                        }
-                    });
-                }
-            }
-            
-            // 4. Settlement Components
-            const ctx4 = document.getElementById('settlementChart');
-            if (ctx4) {
-                const chartCtx = ctx4.getContext('2d');
-                if (charts.settlement) charts.settlement.destroy();
-                
-                charts.settlement = new Chart(chartCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Ss(탄성압축)', 'Sp(선단침하)', 'Sps(주면침하)', 'St(총침하)'],
-                        datasets: [{
-                            label: '침하량 (mm)',
-                            data: [
-                                result.Ss || 0,
-                                result.Sp || 0,
-                                result.Sps || 0,
-                                result.St || 0
-                            ],
-                            backgroundColor: [
-                                'rgba(54, 162, 235, 0.7)',
-                                'rgba(255, 206, 86, 0.7)',
-                                'rgba(255, 99, 132, 0.7)',
-                                'rgba(75, 192, 192, 0.7)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                title: { display: true, text: '침하량 (mm)' },
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 5. Safety Factor vs Load
-            const ctx5 = document.getElementById('safetyChart');
-            if (ctx5) {
-                const chartCtx = ctx5.getContext('2d');
-                if (charts.safety) charts.safety.destroy();
-                
-                const loads = [];
-                const safetyFactors = [];
-                const Qu = result.Qu || 2000;
-                
-                for (let load = 100; load <= Qu; load += 100) {
-                    loads.push(load);
-                    safetyFactors.push(Qu / load);
-                }
-                
-                charts.safety = new Chart(chartCtx, {
-                    type: 'line',
-                    data: {
-                        labels: loads,
-                        datasets: [{
-                            label: '안전율',
-                            data: safetyFactors,
-                            borderColor: '#1e3a5f',
-                            backgroundColor: 'rgba(30, 58, 95, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                title: { display: true, text: '작용하중 (kN)' }
-                            },
-                            y: {
-                                title: { display: true, text: '안전율' },
-                                min: 0
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // 6. Load-Settlement Curve
-            const ctx6 = document.getElementById('loadSettlementChart');
-            if (ctx6) {
-                const chartCtx = ctx6.getContext('2d');
-                if (charts.loadSettlement) charts.loadSettlement.destroy();
-                
-                const loads = [];
-                const settlements = [];
-                const maxLoad = result.Qu || 2000;
-                
-                for (let i = 0; i <= 40; i++) {
-                    const load = (maxLoad / 40) * i;
-                    loads.push(load);
-                    const s = (load / maxLoad) * 25 / (1 + (load / maxLoad));
-                    settlements.push(s);
-                }
-                
-                charts.loadSettlement = new Chart(chartCtx, {
-                    type: 'line',
-                    data: {
-                        labels: loads.map(l => l.toFixed(0)),
-                        datasets: [{
-                            label: 'Load-Settlement',
-                            data: settlements,
-                            borderColor: '#2c4e7e',
-                            backgroundColor: 'rgba(44, 78, 126, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.4,
-                            pointRadius: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                title: { display: true, text: '하중 (kN)' }
-                            },
-                            y: {
-                                title: { display: true, text: '침하량 (mm)' }
-                            }
-                        }
-                    }
-                });
-            }
         }
 
         function updateSummaryCards() {
@@ -5844,7 +4968,7 @@
                         <span style="color:#90caf9;">심도:</span><span>GL-${hoveredPoint.depth.toFixed(1)}m</span>
                         <span style="color:#90caf9;">표고:</span><span>EL.${elValue}m</span>
                         <span style="color:#90caf9;">N값:</span><span style="font-weight:bold;color:${hoveredPoint.nValue >= 50 ? '#ff8a80' : '#fff'};">${hoveredPoint.nValue}</span>
-                        <span style="color:#90caf9;">지층:</span><span>${hoveredPoint.layer}</span>
+                        <span style="color:#90caf9;">지층:</span><span>${escapeHTML(hoveredPoint.layer)}</span>
                     </div>
                 `;
                 tooltip.style.left = (e.clientX + 15) + 'px';
@@ -5865,7 +4989,7 @@
                 const dist = Math.sqrt((x - point.x) ** 2 + (y - point.y) ** 2);
                 if (dist <= point.radius) {
                     // 클릭 시 알림 표시
-                    alert(`N값 정보\n\n심도: GL-${point.depth.toFixed(1)}m\nN값: ${point.nValue}\n지층: ${point.layer}`);
+                    showToast(`심도: GL-${point.depth.toFixed(1)}m\nN값: ${point.nValue}\n지층: ${point.layer}`, 'info', {title: 'N값 정보'});
                     break;
                 }
             }
@@ -6998,7 +6122,7 @@
 
         function open3DVisualization() {
             if (!boreholeData || boreholeData.length === 0) {
-                alert('시추공 데이터가 없습니다. JSON 파일을 먼저 업로드하세요.');
+                showToast('시추공 데이터가 없습니다. JSON 파일을 먼저 업로드하세요.', 'warning');
                 return;
             }
             const modal = document.getElementById('modal3DView');
@@ -7215,7 +6339,7 @@
                     // 디버그: 말뚝 선단과 풍화암 상단 레벨 비교
                     if (result?.pileLength > 0) {
                         const diff = bhInfo.pileTipEl - bhInfo.weatheredRockTop;
-                        console.log(`[3D 검증] ${bhInfo.holeNo}: 지표고=${el.toFixed(2)}, 풍화암상단=${bhInfo.weatheredRockTop.toFixed(2)}, 말뚝선단=${bhInfo.pileTipEl.toFixed(2)}, 차이=${diff.toFixed(2)}m (+ = 선단이 위, - = 선단이 아래)`);
+                        if (DEBUG_CALC) console.log(`[3D 검증] ${bhInfo.holeNo}: 지표고=${el.toFixed(2)}, 풍화암상단=${bhInfo.weatheredRockTop.toFixed(2)}, 말뚝선단=${bhInfo.pileTipEl.toFixed(2)}, 차이=${diff.toFixed(2)}m (+ = 선단이 위, - = 선단이 아래)`);
                     }
 
                     return bhInfo;
@@ -8522,7 +7646,7 @@
             }
             document.getElementById('skinFrictionDetails').innerHTML = skinFrictionHTML;
             document.getElementById('skinFrictionTotal').innerHTML =
-                `<strong>총 주면마찰력:</strong> $$Q_s = \\sum_{i=1}^{n} f_{s,i} \\times A_{s,i} = ${(result.Qs || 0).toFixed(1)} \\text{ kN}$$`;
+                `<strong>총 주면마찰력:</strong> $$Q_s = \\sum_{i=1}^{n} f_{s,i} \\times A_{s,i} = ${(result.Qs || 0).toFixed(1)} \\text{ kN}$$` + stdRefHTML('sf_skin_sand') + stdRefHTML('sf_skin_clay');
             
             // Update skin friction detail table (사질토/점성토 구분)
             const tableBody = document.getElementById('skinFrictionDetailTableBody');
@@ -8780,6 +7904,17 @@
             const qp_raw = result.qp_raw || (endBearingCoeff * tipN);
             const qp_calculated = result.qp || Math.min(qp_raw, qpLimit);
 
+            // N값 상한 결정 (설계기준별)
+            let nCapValue = 50;
+            if (designStandard === 'highway_bridge_2015') {
+                nCapValue = 40;
+            } else if (designStandard === 'structural_foundation_2015') {
+                nCapValue = pileType === 'driven' ? 50 : 60;
+            } else if (designStandard === 'building_foundation_2005') {
+                nCapValue = 60;
+            }
+            const nCapApplied = Math.min(tipN, nCapValue);
+
             // Update formula display
             const endBearingFormulaEl = document.getElementById('endBearingFormula');
             if (endBearingFormulaEl) {
@@ -8787,10 +7922,10 @@
                     <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #1976d2;">
                         <strong>적용 기준:</strong> ${endBearingFormulaDesc}
                     </div>
-                    선단지지력 계산:
-                    $$q_p = C_{end} \\times N_{tip} \\leq q_{p,limit}$$
+                    선단지지력 계산: ${stdRefHTML('sf_end_bearing')}
+                    $$q_p = C_{end} \\times \\min(N_{tip},\\, ${nCapValue}) \\leq q_{p,limit}$$
                     <div style="font-size: 0.9rem; color: #666; margin-top: 5px;">
-                        $C_{end} = ${endBearingCoeff}$, 상한값 = ${qpLimit.toLocaleString()} kPa
+                        $C_{end} = ${endBearingCoeff}$, N값 상한 = ${nCapValue}, 선단지지력 상한값 = ${qpLimit.toLocaleString()} kPa
                     </div>
                 `;
             }
@@ -8811,11 +7946,11 @@
             if (endBearingCalc3El) {
                 if (qp_raw > qpLimit) {
                     endBearingCalc3El.innerHTML =
-                        `$q_p = ${endBearingCoeff} \\times ${tipN} = ${qp_raw.toLocaleString()}$ kPa > ${qpLimit.toLocaleString()} kPa<br>
+                        `$q_p = ${endBearingCoeff} \\times \\min(${tipN.toFixed(1)},\\, ${nCapValue}) = ${endBearingCoeff} \\times ${nCapApplied.toFixed(1)} = ${(endBearingCoeff * nCapApplied).toLocaleString()}$ kPa > ${qpLimit.toLocaleString()} kPa<br>
                          <span style="color: #f57c00;">→ 상한값 적용: $q_p = ${qpLimit.toLocaleString()}$ kPa</span>`;
                 } else {
                     endBearingCalc3El.innerHTML =
-                        `$q_p = C_{end} \\times N_{tip} = ${endBearingCoeff} \\times ${tipN} = ${qp_calculated.toLocaleString()}$ kPa (OK)`;
+                        `$q_p = C_{end} \\times \\min(N_{tip},\\, ${nCapValue}) = ${endBearingCoeff} \\times ${nCapApplied.toFixed(1)} = ${qp_calculated.toLocaleString()}$ kPa (OK)`;
                 }
             }
 
@@ -8830,9 +7965,9 @@
             const FSv = parseFloat(document.getElementById('sfVertical').value) || 3.0;
 
             document.getElementById('ultimateCalc').innerHTML =
-                `극한지지력: $$Q_u = Q_s + Q_p = ${Qs.toFixed(1)} + ${Qp.toFixed(1)} = ${Qu.toFixed(1)} \\text{ kN}$$`;
+                `극한지지력: $$Q_u = Q_s + Q_p = ${Qs.toFixed(1)} + ${Qp.toFixed(1)} = ${Qu.toFixed(1)} \\text{ kN}$$` + stdRefHTML('sf_ultimate');
             document.getElementById('allowableCalc').innerHTML =
-                `지반 허용지지력: $$Q_{a,soil} = \\frac{Q_u}{FS_v} = \\frac{${Qu.toFixed(1)}}{${FSv}} = ${(Qu/FSv).toFixed(1)} \\text{ kN}$$`;
+                `지반 허용지지력: $$Q_{a,soil} = \\frac{Q_u}{FS_v} = \\frac{${Qu.toFixed(1)}}{${FSv}} = ${(Qu/FSv).toFixed(1)} \\text{ kN}$$` + stdRefHTML('sf_allowable');
             
             // Update splice calculation detail
             const spliceMethod = result.spliceMethod || document.getElementById('spliceMethod').value;
@@ -8882,8 +8017,8 @@
             
             const Qa_soil = result.Qa_soil || (Qu / FSv);
             const Qa_material = result.Qa_material || (baseAllowable * spliceFactor);
-            document.getElementById('finalCapacity').innerHTML = 
-                `최종 허용지지력: $Q_a = min(${Qa_soil.toFixed(0)}, ${Qa_material.toFixed(0)}) = ${Qa.toFixed(0)}$ kN`;
+            document.getElementById('finalCapacity').innerHTML =
+                `최종 허용지지력: $Q_a = min(${Qa_soil.toFixed(0)}, ${Qa_material.toFixed(0)}) = ${Qa.toFixed(0)}$ kN` + stdRefHTML('sf_final');
             
             // Update settlement (using allowable capacity) - Mathcad style with 3-component method
             const Q_settle = result.Qa || 0; // Use allowable capacity
@@ -8949,7 +8084,7 @@
 
             document.getElementById('elasticCalc5').innerHTML =
                 `$$S_s = \\frac{(Q_{ps} + \\alpha_s \\cdot Q_{fs}) \\times L}{A_p \\times E_p} = \\frac{(${Qps.toFixed(1)} + ${alpha_s} \\times ${Qfs.toFixed(1)}) \\times ${pileLength.toFixed(1)}}{${pile.area} \\times ${E_display.toLocaleString()}} \\times 1000$$
-                 $$= ${Ss_display.toFixed(2)} \\text{ mm}$$`;
+                 $$= ${Ss_display.toFixed(2)} \\text{ mm}$$` + stdRefHTML('settle_ss');
 
             // Update tip settlement with detailed calculation
             const qp_settle = qp_calculated || 15000;
@@ -8979,7 +8114,7 @@
             document.getElementById('tipCalc3').innerHTML =
                 `말뚝 직경: $D = ${pile.diameter}$ m`;
             document.getElementById('tipCalc4').innerHTML =
-                `$$S_p = \\frac{C_p \\times Q_{ps}}{D \\times q_p} \\times 1000 = \\frac{${Cp} \\times ${Qps.toFixed(1)}}{${pile.diameter} \\times ${qp_settle.toLocaleString()}} \\times 1000 = ${Sp_display.toFixed(2)} \\text{ mm}$$`;
+                `$$S_p = \\frac{C_p \\times Q_{ps}}{D \\times q_p} \\times 1000 = \\frac{${Cp} \\times ${Qps.toFixed(1)}}{${pile.diameter} \\times ${qp_settle.toLocaleString()}} \\times 1000 = ${Sp_display.toFixed(2)} \\text{ mm}$$` + stdRefHTML('settle_sp');
 
             // Update shaft settlement (Sps) calculation - new elements
             const Cs = (0.93 + 0.16 * Math.sqrt(pileLength / pile.diameter)) * Cp;
@@ -9000,13 +8135,13 @@
             const shaftSettleCalc3El = document.getElementById('shaftSettleCalc3');
             if (shaftSettleCalc3El) {
                 shaftSettleCalc3El.innerHTML =
-                    `$$S_{ps} = \\frac{Q_{fs} \\times C_s}{L \\times q_p} \\times 1000 = \\frac{${Qfs.toFixed(1)} \\times ${Cs.toFixed(4)}}{${pileLength.toFixed(1)} \\times ${qp_settle.toLocaleString()}} \\times 1000 = ${Sps_display.toFixed(2)} \\text{ mm}$$`;
+                    `$$S_{ps} = \\frac{Q_{fs} \\times C_s}{L \\times q_p} \\times 1000 = \\frac{${Qfs.toFixed(1)} \\times ${Cs.toFixed(4)}}{${pileLength.toFixed(1)} \\times ${qp_settle.toLocaleString()}} \\times 1000 = ${Sps_display.toFixed(2)} \\text{ mm}$$` + stdRefHTML('settle_sps');
             }
 
             const allowableSettlement = settlementCoeffsDisplay.allowableSettlement;
             const isPass = St <= allowableSettlement;
             document.getElementById('settlementTotal').innerHTML =
-                `<strong>총 침하량 산정 (Vesic 3성분법):</strong><br>
+                `<strong>총 침하량 산정 (Vesic 3성분법):</strong> ${stdRefHTML('settle_vesic')}<br>
                  $$S_t = S_s + S_p + S_{ps}$$
                  $$= ${Ss_display.toFixed(2)} + ${Sp_display.toFixed(2)} + ${Sps_display.toFixed(2)} = ${St.toFixed(2)} \\text{ mm}$$
                  <div style="margin-top: 15px; padding: 12px; background: ${isPass ? '#eceff1' : '#ffebee'}; border-left: 3px solid ${isPass ? 'var(--status-pass)' : 'var(--status-fail)'}; border-radius: 4px;">
@@ -9046,7 +8181,7 @@
                         </div>
                     `;
                 }
-                document.getElementById('lateralCalc1').innerHTML = khDetailHTML;
+                document.getElementById('lateralCalc1').innerHTML = khDetailHTML + stdRefHTML('lateral_kh');
 
                 // 4-2: 단면 2차 모멘트 상세 표시 (중공 원형 단면)
                 // I = π/64 × (D⁴ - d⁴) where d = D - 2t
@@ -9074,7 +8209,7 @@
 
                 // 4-3: 특성값 계산 (플라스틱 단면계수 문구 삭제됨)
                 document.getElementById('lateralCalc3').innerHTML =
-                    `<strong>특성값 (β) 계산:</strong><br>
+                    `<strong>특성값 (β) 계산:</strong> ${stdRefHTML('lateral_chang')}<br>
                      $\\beta = \\sqrt[4]{\\frac{k_h \\times D}{4 \\times EI}} = \\sqrt[4]{\\frac{${hc.kh.toFixed(0)} \\times ${D}}{4 \\times ${hc.EI.toFixed(0)}}} = ${hc.chang.beta.toFixed(6)}$ m⁻¹`;
 
                 // Update beta*L check
@@ -9086,12 +8221,12 @@
                 if (changResultEl) {
                     changResultEl.innerHTML = `
                         <div style="margin-bottom: 15px;">
-                            <strong style="color: var(--primary-navy);">[Chang's Method]</strong><br>
+                            <strong style="color: var(--primary-navy);">[Chang's Method]</strong> ${stdRefHTML('lateral_chang')}<br>
                             허용변위: $Y = ${hc.chang.Y}$ cm<br>
                             허용 수평지지력: $H_{a,Chang} = \\frac{2\\sqrt{EI \\cdot k_h \\cdot D} \\cdot Y}{FS_h} = ${hc.chang.Ha.toFixed(2)}$ kN
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <strong style="color: var(--primary-navy);">[Broms' Method]</strong><br>
+                            <strong style="color: var(--primary-navy);">[Broms' Method]</strong> ${stdRefHTML('lateral_broms')}<br>
                             항복모멘트: $M_y = ${hc.broms.My.toFixed(2)}$ kN·m<br>
                             극한지지력: $H_u = ${hc.broms.Hu.toFixed(2)}$ kN<br>
                             허용 수평지지력: $H_{a,Broms} = \\frac{H_u}{FS_h} = \\frac{${hc.broms.Hu.toFixed(2)}}{${parseFloat(document.getElementById('sfHorizontal').value) || 2.0}} = ${hc.broms.Ha.toFixed(2)}$ kN
@@ -9148,16 +8283,16 @@
                 // Update final result
                 const upliftResultEl = document.getElementById('upliftResult');
                 if (upliftResultEl) {
-                    const Qu_term = result.Qu || 0;
-                    const Qu_FSp = Qu_term / FSp;
-                    upliftResultEl.innerHTML = 
-                        `$Q_{pull} = \\frac{Q_u}{FS_p} + W_p = \\frac{${Qu_term.toFixed(1)}}{${FSp}} + ${uc.Wp.toFixed(2)} = ${Qu_FSp.toFixed(2)} + ${uc.Wp.toFixed(2)} = ${uc.Q_pull.toFixed(2)}$ kN`;
+                    const Qs_pullout = uc.Qs_pullout || ((result.Qs || 0) * 0.8);
+                    const Qs_pull_FSp = Qs_pullout / FSp;
+                    upliftResultEl.innerHTML =
+                        `$Q_{pull} = \\frac{0.8 \\times Q_s}{FS_p} + W_p = \\frac{0.8 \\times ${(result.Qs || 0).toFixed(1)}}{${FSp}} + ${uc.Wp.toFixed(2)} = \\frac{${Qs_pullout.toFixed(1)}}{${FSp}} + ${uc.Wp.toFixed(2)} = ${Qs_pull_FSp.toFixed(2)} + ${uc.Wp.toFixed(2)} = ${uc.Q_pull.toFixed(2)}$ kN` + stdRefHTML('uplift');
                 }
             }
             
             // Render MathJax
             if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
-                MathJax.typesetPromise().catch((err) => console.log('MathJax typeset error:', err));
+                MathJax.typesetPromise().catch((err) => console.warn('MathJax typeset error:', err));
             }
         }
 
@@ -9166,7 +8301,7 @@
             const result = calculationResults.find(r => r && r.borehole === boreholeNo);
             
             if (!borehole || !result) {
-                alert('시추공 데이터를 찾을 수 없습니다.');
+                showToast('시추공 데이터를 찾을 수 없습니다.', 'error');
                 return;
             }
             
@@ -9222,21 +8357,21 @@
                         // 깊이 범위가 일치하는지 확인 (0.2m 오차 허용)
                         if (Math.abs(saved.depthFrom - queryDepthFrom) < 0.2 &&
                             Math.abs(saved.depthTo - queryDepthTo) < 0.2) {
-                            console.log(`[findCustomParams] 깊이범위 매칭: ${saved.layerName} (${saved.depthFrom}~${saved.depthTo}m)`);
+                            if (DEBUG_CALC) console.log(`[findCustomParams] 깊이범위 매칭: ${saved.layerName} (${saved.depthFrom}~${saved.depthTo}m)`);
                             return saved;
                         }
                     }
                     // 토층명이 같은 레이어 검색 (보조)
                     for (const saved of borehole._customLayerList) {
                         if (saved.layerName === layerName) {
-                            console.log(`[findCustomParams] 토층명 매칭: ${saved.layerName}`);
+                            if (DEBUG_CALC) console.log(`[findCustomParams] 토층명 매칭: ${saved.layerName}`);
                             return saved;
                         }
                     }
                 }
                 // 2. _customParams에서 토층명으로 검색 (보조)
                 if (borehole._customParams && borehole._customParams[layerName]) {
-                    console.log(`[findCustomParams] _customParams 매칭: ${layerName}`);
+                    if (DEBUG_CALC) console.log(`[findCustomParams] _customParams 매칭: ${layerName}`);
                     return borehole._customParams[layerName];
                 }
                 return null;
@@ -9259,7 +8394,7 @@
                     if (savedFill.phi > 0) fillPhi = savedFill.phi;
                     if (savedFill.gamma > 0) fillGamma = savedFill.gamma;
                     if (savedFill.E > 0) fillE = savedFill.E;
-                    console.log(`[openDetailModal] 성토재 커스텀 값 불러옴: N=${fillN}`);
+                    if (DEBUG_CALC) console.log(`[openDetailModal] 성토재 커스텀 값 불러옴: N=${fillN}`);
                 }
 
                 // 성토층 EL 표기 계산
@@ -9360,7 +8495,7 @@
                                     phi = parseFloat(inputs[2]?.value) || 30;
                                     gamma = parseFloat(inputs[3]?.value) || 18;
                                     E = parseFloat(inputs[4]?.value) || 50;
-                                    console.log(`[모달] ${layerName} DOM에서 읽음: N(설계)=${designN}, cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
+                                    if (DEBUG_CALC) console.log(`[모달] ${layerName} DOM에서 읽음: N(설계)=${designN}, cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
                                 }
                             } else if (layerStats && layerStats.recommended) {
                                 // 2순위: 저장된 추천값 사용
@@ -9368,7 +8503,7 @@
                                 phi = layerStats.recommended.phi || 30;
                                 gamma = layerStats.recommended.gamma || 18;
                                 E = layerStats.recommended.E || 50;
-                                console.log(`[모달] ${layerName} recommended에서 읽음: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
+                                if (DEBUG_CALC) console.log(`[모달] ${layerName} recommended에서 읽음: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
                             } else {
                                 // 3순위: N값 기반 기본 계산
                                 const isCohesive = layerName.includes('점토') || layerName.includes('실트');
@@ -9376,7 +8511,7 @@
                                 phi = Math.min(28 + nValue / 2, 40);
                                 gamma = 18;
                                 E = 2.5 * nValue;
-                                console.log(`[모달] ${layerName} 기본계산: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
+                                if (DEBUG_CALC) console.log(`[모달] ${layerName} 기본계산: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
                             }
 
                             // EL 표기 계산
@@ -9390,7 +8525,7 @@
                             row.dataset.sampleDepth = sampleDepth.toFixed(2);
                             row.innerHTML = `
                                 <td>EL.${elTop.toFixed(1)}~${elBottom.toFixed(1)}<br><span style="font-size:0.8em;color:#666;">(${displayDepthFrom.toFixed(1)}~${displayDepthTo.toFixed(1)}m)</span></td>
-                                <td>${layerName}<br><span style="font-size:0.75em;color:#888;">${sample.Sample_number || ''} @${sampleDepth}m</span></td>
+                                <td>${escapeHTML(layerName)}<br><span style="font-size:0.75em;color:#888;">${escapeHTML(sample.Sample_number || '')} @${sampleDepth}m</span></td>
                                 <td title="${sample.Hits} → N=${nValue}"><input type="number" value="${nValue}" step="1" style="width: 60px;" class="form-input"></td>
                                 <td><input type="number" value="${cu.toFixed(0)}" step="1" style="width: 80px;" class="form-input"></td>
                                 <td><input type="number" value="${phi.toFixed(0)}" step="1" style="width: 60px;" class="form-input"></td>
@@ -9436,14 +8571,14 @@
                                 phi = parseFloat(inputs[2]?.value) || 30;
                                 gamma = parseFloat(inputs[3]?.value) || 18;
                                 E = parseFloat(inputs[4]?.value) || 50;
-                                console.log(`[모달-노샘플] ${layerName} DOM에서 읽음: N=${avgN}, cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
+                                if (DEBUG_CALC) console.log(`[모달-노샘플] ${layerName} DOM에서 읽음: N=${avgN}, cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
                             }
                         } else if (layerStats2 && layerStats2.recommended) {
                             cu = layerStats2.recommended.cu || 0;
                             phi = layerStats2.recommended.phi || 30;
                             gamma = layerStats2.recommended.gamma || 18;
                             E = layerStats2.recommended.E || 50;
-                            console.log(`[모달-노샘플] ${layerName} recommended에서 읽음: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
+                            if (DEBUG_CALC) console.log(`[모달-노샘플] ${layerName} recommended에서 읽음: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
                         } else {
                             // 통계 없으면 N값 기반 기본 계산
                             const isCohesive = layerName.includes('점토') || layerName.includes('실트');
@@ -9451,7 +8586,7 @@
                             phi = Math.min(28 + avgN / 2, 40);
                             gamma = 18;
                             E = 2.5 * avgN;
-                            console.log(`[모달-노샘플] ${layerName} 기본계산: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
+                            if (DEBUG_CALC) console.log(`[모달-노샘플] ${layerName} 기본계산: cu=${cu}, phi=${phi}, gamma=${gamma}, E=${E}`);
                         }
 
                         const elTop = modalTargetElevation - displayDepthFrom;
@@ -9711,7 +8846,7 @@
             const boreholeIndex = boreholeData.findIndex(b => b.hole_no === modalBorehole);
 
             if (boreholeIndex < 0) {
-                alert('시추공 데이터를 찾을 수 없습니다.');
+                showToast('시추공 데이터를 찾을 수 없습니다.', 'error');
                 return;
             }
 
@@ -9769,18 +8904,18 @@
                     borehole._customParams[displayLayerName] = params;
                 }
 
-                console.log(`[saveModalData] 수집: ${displayLayerName}, 깊이: ${params.depthFrom.toFixed(2)}~${params.depthTo.toFixed(2)}m, N=${customN}`);
+                if (DEBUG_CALC) console.log(`[saveModalData] 수집: ${displayLayerName}, 깊이: ${params.depthFrom.toFixed(2)}~${params.depthTo.toFixed(2)}m, N=${customN}`);
             });
 
             // 레이어 리스트를 시추공에 저장 (깊이 범위 검색용)
             borehole._customLayerList = layerList;
 
-            console.log(`[saveModalData] ${modalBorehole}: 총 ${layerList.length}개 레이어 저장됨`);
+            if (DEBUG_CALC) console.log(`[saveModalData] ${modalBorehole}: 총 ${layerList.length}개 레이어 저장됨`);
             console.log('[saveModalData] customParams:', borehole._customParams);
             console.log('[saveModalData] _customLayerList:', borehole._customLayerList);
 
             // 저장 완료 알림
-            alert(`토질 매개변수가 저장되었습니다.\n(${layerList.length}개 지층)`);
+            showToast(`토질 매개변수가 저장되었습니다. (${layerList.length}개 지층)`, 'success');
 
             // 모달 닫고 재계산
             closeModal();
@@ -9809,11 +8944,10 @@
                 // Update displays
                 updateSummaryTable();
                 updateSummaryCards();
-                updateCharts();
                 updateCalculations();
             } catch (error) {
                 console.error('Error recalculating borehole', borehole.hole_no, ':', error);
-                alert('계산 중 오류가 발생했습니다: ' + error.message);
+                showToast('계산 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
 
@@ -9827,7 +8961,7 @@
             const borehole = boreholeData[boreholeIndex];
             borehole._customPileTipLevel = tipElevation;
 
-            console.log(`[updateBoreholeTipElevation] ${borehole.hole_no}: 선단지지고 변경 = EL.${tipElevation.toFixed(2)}m`);
+            if (DEBUG_CALC) console.log(`[updateBoreholeTipElevation] ${borehole.hole_no}: 선단지지고 변경 = EL.${tipElevation.toFixed(2)}m`);
 
             // Recalculate only this borehole
             try {
@@ -9837,13 +8971,12 @@
                 // Update displays
                 updateSummaryTable();
                 updateSummaryCards();
-                updateCharts();
                 updateCalculations();
 
-                console.log(`[updateBoreholeTipElevation] ${borehole.hole_no}: 재계산 완료 - 말뚝길이=${result.pileLength?.toFixed(1)}m, 허용지지력=${result.Qa?.toFixed(0)}kN`);
+                if (DEBUG_CALC) console.log(`[updateBoreholeTipElevation] ${borehole.hole_no}: 재계산 완료 - 말뚝길이=${result.pileLength?.toFixed(1)}m, 허용지지력=${result.Qa?.toFixed(0)}kN`);
             } catch (error) {
                 console.error('Error recalculating borehole', borehole.hole_no, ':', error);
-                alert('계산 중 오류가 발생했습니다: ' + error.message);
+                showToast('계산 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
 
@@ -9856,7 +8989,7 @@
             const borehole = boreholeData[boreholeIndex];
             delete borehole._customPileTipLevel;
 
-            console.log(`[resetBoreholeTipElevation] ${borehole.hole_no}: 선단지지고 기본값으로 복원`);
+            if (DEBUG_CALC) console.log(`[resetBoreholeTipElevation] ${borehole.hole_no}: 선단지지고 기본값으로 복원`);
 
             // Recalculate only this borehole
             try {
@@ -9866,11 +8999,10 @@
                 // Update displays
                 updateSummaryTable();
                 updateSummaryCards();
-                updateCharts();
                 updateCalculations();
             } catch (error) {
                 console.error('Error recalculating borehole', borehole.hole_no, ':', error);
-                alert('계산 중 오류가 발생했습니다: ' + error.message);
+                showToast('계산 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
 
@@ -9905,7 +9037,7 @@
             // 선택된 시추공 인덱스
             const selectedIndices = getSelectedBoreholeIndices();
             if (selectedIndices.length === 0 && includeDetailedCalc) {
-                alert('최소 하나 이상의 시추공을 선택해주세요.');
+                showToast('최소 하나 이상의 시추공을 선택해주세요.', 'warning');
                 return;
             }
 
@@ -9927,14 +9059,14 @@
                 detailedCalculations += `
                     <div style="page-break-before: always; margin-top: 40px;">
                         <h3 style="color: var(--primary-steel); margin-bottom: 20px;">
-                            시추공 ${result.borehole} 상세 계산서
+                            시추공 ${escapeHTML(result.borehole)} 상세 계산서
                         </h3>
 
                         <h4 style="color: var(--primary-navy); margin: 20px 0 15px 0;">1) 설계 조건</h4>
                         <table class="data-table" style="margin-bottom: 20px;">
                             <tr>
                                 <td style="width: 200px; font-weight: 600;">시추공 번호</td>
-                                <td>${result.borehole}</td>
+                                <td>${escapeHTML(result.borehole)}</td>
                             </tr>
                             <tr>
                                 <td style="font-weight: 600;">적용 설계기준</td>
@@ -10348,7 +9480,7 @@
                             <p style="margin: 5px 0;"><strong>전체 자중:</strong> $W_{total} = ${result.upliftCapacity.unitWeightPile.toFixed(2)} \\times ${result.pileLength.toFixed(1)} = ${result.upliftCapacity.weightTotal.toFixed(2)}$ kN</p>
                             <p style="margin: 5px 0;"><strong>부력:</strong> $B = A_p \\times l_2 \\times \\gamma_w = ${Ap.toFixed(4)} \\times ${result.upliftCapacity.l2.toFixed(2)} \\times 10 = ${result.upliftCapacity.buoyancy.toFixed(2)}$ kN</p>
                             <p style="margin: 5px 0;"><strong>유효 자중:</strong> $W_p = W_{total} - B = ${result.upliftCapacity.weightTotal.toFixed(2)} - ${result.upliftCapacity.buoyancy.toFixed(2)} = ${result.upliftCapacity.Wp.toFixed(2)}$ kN</p>
-                            <p style="margin: 5px 0;"><strong>계산식:</strong> $Q_{pull} = \\frac{Q_u}{FS_p} + W_p = \\frac{${result.Qu.toFixed(1)}}{${parseFloat(document.getElementById('sfPullout').value) || 3.0}} + ${result.upliftCapacity.Wp.toFixed(2)} = ${result.upliftCapacity.Q_pull.toFixed(2)}$ kN</p>
+                            <p style="margin: 5px 0;"><strong>계산식:</strong> $Q_{pull} = \\frac{0.8 \\times Q_s}{FS_p} + W_p = \\frac{0.8 \\times ${(result.Qs || 0).toFixed(1)}}{${parseFloat(document.getElementById('sfPullout').value) || 3.0}} + ${result.upliftCapacity.Wp.toFixed(2)} = ${result.upliftCapacity.Q_pull.toFixed(2)}$ kN</p>
                             <p style="margin: 10px 0 0 0; font-weight: 600;">허용 인발 저항력: $Q_{pull} = ${result.upliftCapacity.Q_pull.toFixed(2)}$ kN</p>
                         </div>
                         `;
@@ -10753,7 +9885,7 @@
             // Render MathJax for formulas in the report
             setTimeout(() => {
                 if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
-                    MathJax.typesetPromise([reportContent]).catch((err) => console.log('MathJax typeset error:', err));
+                    MathJax.typesetPromise([reportContent]).catch((err) => console.warn('MathJax typeset error:', err));
                 }
             }, 100);
         }
@@ -10766,7 +9898,7 @@
             try {
                 const reportContent = document.getElementById('reportContent');
                 if (!reportContent.innerHTML.trim() || reportContent.innerHTML.includes('보고서 생성" 버튼을 클릭')) {
-                    alert('먼저 보고서를 생성해주세요.');
+                    showToast('먼저 보고서를 생성해주세요.', 'warning');
                     return;
                 }
 
@@ -10848,10 +9980,10 @@ ${processedHTML}
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
 
-                alert('Word 파일이 생성되었습니다.\n\n참고: 수식은 [수식]으로 표시됩니다.\nMicrosoft Word에서 열어주세요.');
+                showToast('Word 파일이 생성되었습니다. Microsoft Word에서 열어주세요.', 'success', {duration: 6000});
             } catch (error) {
                 console.error('Word export error:', error);
-                alert('Word 파일 생성 중 오류가 발생했습니다: ' + error.message);
+                showToast('Word 파일 생성 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
 
@@ -10869,13 +10001,13 @@ ${processedHTML}
 
             // 파일 타입 검증
             if (!file.type.startsWith('image/')) {
-                alert('이미지 파일만 업로드 가능합니다.');
+                showToast('이미지 파일만 업로드 가능합니다.', 'warning');
                 return;
             }
 
             // 파일 크기 검증 (최대 5MB)
             if (file.size > 5 * 1024 * 1024) {
-                alert('파일 크기는 5MB 이하로 제한됩니다.');
+                showToast('파일 크기는 5MB 이하로 제한됩니다.', 'warning');
                 return;
             }
 
@@ -10943,7 +10075,7 @@ ${processedHTML}
 
             // 보고서 내용 확인
             if (!reportContent.innerHTML.trim() || reportContent.innerHTML.includes('보고서 생성" 버튼을 클릭')) {
-                alert('먼저 보고서를 생성해주세요.');
+                showToast('먼저 보고서를 생성해주세요.', 'warning');
                 return;
             }
 
@@ -10981,7 +10113,7 @@ ${processedHTML}
                 // 새 창 열기
                 const printWindow = window.open('', '_blank');
                 if (!printWindow) {
-                    alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+                    showToast('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.', 'error');
                     progressContainer.style.display = 'none';
                     return;
                 }
@@ -11057,7 +10189,7 @@ ${htmlContent}
 
             } catch (error) {
                 console.error('PDF 생성 오류:', error);
-                alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
+                showToast('PDF 생성 중 오류가 발생했습니다: ' + error.message, 'error');
                 progressContainer.style.display = 'none';
             }
         }
@@ -11299,13 +10431,13 @@ ${htmlContent}
 
         function runSensitivityAnalysis() {
             if (!calculationResults || calculationResults.length === 0) {
-                alert('먼저 통합 분석을 실행해주세요.');
+                showToast('먼저 통합 분석을 실행해주세요.', 'warning');
                 return;
             }
             
             const boreholeIndex = parseInt(document.getElementById('sensitivityBoreholeSelect').value);
             if (isNaN(boreholeIndex) || !boreholeData[boreholeIndex]) {
-                alert('시추공을 선택해주세요.');
+                showToast('시추공을 선택해주세요.', 'warning');
                 return;
             }
             
@@ -11313,7 +10445,7 @@ ${htmlContent}
             const param2 = document.getElementById('sensitivityParam2').value;
             
             if (param1 === param2) {
-                alert('변수 1과 변수 2는 서로 다른 값을 선택해야 합니다.');
+                showToast('변수 1과 변수 2는 서로 다른 값을 선택해야 합니다.', 'warning');
                 return;
             }
             
@@ -11328,7 +10460,7 @@ ${htmlContent}
             });
             
             if (param1Values.length === 0 || param2Values.length === 0) {
-                alert('각 변수에 대해 최소 1개 이상의 값을 선택해주세요.');
+                showToast('각 변수에 대해 최소 1개 이상의 값을 선택해주세요.', 'warning');
                 return;
             }
             
@@ -11341,7 +10473,7 @@ ${htmlContent}
             };
             
             if (!metrics.allowable && !metrics.settlement && !metrics.horizontal && !metrics.cost) {
-                alert('최소 1개 이상의 분석 지표를 선택해주세요.');
+                showToast('최소 1개 이상의 분석 지표를 선택해주세요.', 'warning');
                 return;
             }
             
@@ -11456,7 +10588,7 @@ ${htmlContent}
                 const rawN = getAverageN(layer);
                 const N = rawN * nFactor;  // N값 보정계수 적용
                 const N60 = N * (globalDesignParameters.hammerEfficiency || 60) / 60;
-                const soilType = determineSoilType(layer.soil_name);
+                const soilType = getEffectiveSoilType(layer.soil_name);
                 const cu = estimateCu(N, soilType);
                 const As = Math.PI * D * 1.0;
 
@@ -11468,7 +10600,7 @@ ${htmlContent}
             // Calculate end bearing using design standard formulas
             const rawTipN = getAverageN(bearingLayer);
             const tipN = rawTipN * nFactor;  // N값 보정계수 적용
-            const bearingSoilType = determineSoilType(bearingLayer.soil_name);
+            const bearingSoilType = getEffectiveSoilType(bearingLayer.soil_name);
             const bearingCu = estimateCu(tipN, bearingSoilType);
             const Ap = Math.PI * D * D / 4;
 
@@ -11631,8 +10763,9 @@ ${htmlContent}
             
             if (sensitivityChart) {
                 sensitivityChart.destroy();
+                sensitivityChart = null;
             }
-            
+
             // Prepare data for heatmap
             // Priority: allowable > horizontal > settlement > cost
             const primaryMetric = metrics.allowable ? 'Qa' :
@@ -12435,6 +11568,32 @@ ${htmlContent}
             }
         }
 
+        // 통합 토질 분류 함수 — 사용자 수동 오버라이드 > 분류 엔진 > 기본값
+        function getEffectiveSoilType(layerName) {
+            if (!layerName) return 'sand';
+
+            // 우선순위 1: 사용자가 입력 검토 탭에서 수동 분류한 경우
+            var userOverride = soilLayerStatistics[layerName]?.behavior;
+            if (userOverride) {
+                switch (userOverride) {
+                    case 'cohesive': return 'clay';
+                    case 'sandy': return 'sand';
+                    case 'rock': return 'rock';
+                    case 'mixed': return 'sand'; // 보수적 기본값
+                }
+            }
+
+            // 우선순위 2: 4단계 토질 분류 엔진
+            var classResult = classifySoilBehavior(layerName);
+            switch (classResult.behavior) {
+                case 'cohesive': return 'clay';
+                case 'sandy': return 'sand';
+                case 'rock': return 'rock';
+                case 'mixed': return 'sand';
+                default: return 'sand'; // unknown → 보수적 기본값
+            }
+        }
+
         // JSON 업로드 시 지층별 통계 분석
         function analyzeBoreholeStatistics() {
             if (!boreholeData || boreholeData.length === 0) return;
@@ -12839,7 +11998,7 @@ ${htmlContent}
 
                 // N값 범위 클릭 가능하게 (상세 팝업용)
                 const nRangeDisplay = stats.nCount > 0
-                    ? `<span class="n-value-range" onclick="showNValueDetails('${layerName}')"
+                    ? `<span class="n-value-range" onclick="showNValueDetails('${escapeHTML(layerName)}')"
                          style="cursor: pointer; text-decoration: underline; color: var(--primary-steel);"
                          title="클릭하여 N값 상세 계산 보기">${stats.nMin}~${stats.nMax}</span>`
                     : '-';
@@ -12855,9 +12014,9 @@ ${htmlContent}
                     : '';
 
                 const soilClassCell = `
-                    <select class="soil-behavior-select" data-layer="${layerName}"
+                    <select class="soil-behavior-select" data-layer="${escapeHTML(layerName)}"
                             style="padding: 6px 8px; border: 1px solid ${displayInfo.borderColor}; border-radius: 4px; background: ${displayInfo.bgColor}; color: ${displayInfo.color}; font-size: 0.85rem; font-weight: 500; cursor: pointer; min-width: 85px;"
-                            onchange="onManualSoilClassChange(this, '${layerName}')"
+                            onchange="onManualSoilClassChange(this, '${escapeHTML(layerName)}')"
                             title="${manualFlag ? (classification.ui_prompt || '토질 특성을 선택하세요') : `자동분류: ${classification.method || '-'}${uscsDisplay}\n클릭하여 수정 가능`}">
                         ${manualFlag && behavior === 'unknown' ? '<option value="unknown">선택</option>' : ''}
                         <option value="sandy" ${behavior === 'sandy' ? 'selected' : ''}>사질토</option>
@@ -12868,7 +12027,7 @@ ${htmlContent}
                 `;
 
                 row.innerHTML = `
-                    <td style="font-weight: 600; color: var(--primary-navy);">${layerName}</td>
+                    <td style="font-weight: 600; color: var(--primary-navy);">${escapeHTML(layerName)}</td>
                     <td style="font-size: 0.85rem;">${stats.boreholes.slice(0, 3).join(', ')}${stats.boreholes.length > 3 ? ` 외 ${stats.boreholes.length - 3}개` : ''}</td>
                     <td>${nRangeDisplay}</td>
                     <td>
@@ -12901,6 +12060,83 @@ ${htmlContent}
                 `;
                 tbody.appendChild(row);
             });
+
+            // 이벤트 위임: 토질정수 입력 필드 변경 시 즉시 반영
+            if (!tbody._paramChangeListenerAttached) {
+                tbody.addEventListener('change', function(e) {
+                    const input = e.target;
+                    if (!input.classList.contains('soil-param-input')) return;
+
+                    const row = input.closest('tr');
+                    if (!row || !row.dataset.layerName) return;
+
+                    const layerName = row.dataset.layerName;
+                    const param = input.dataset.param;
+                    const newValue = parseFloat(input.value);
+
+                    if (isNaN(newValue)) return;
+
+                    // 1. soilLayerStatistics.recommended 즉시 업데이트
+                    const stats = soilLayerStatistics[layerName];
+                    if (stats && stats.recommended) {
+                        stats.recommended[param] = newValue;
+                        // nAvg도 N 변경 시 동기화
+                        if (param === 'N') {
+                            stats.nAvg = newValue;
+                        }
+                    }
+
+                    // 2. 전역 설계 파라미터 soilParams 업데이트
+                    if (!globalDesignParameters.soilParams) {
+                        globalDesignParameters.soilParams = {};
+                    }
+                    if (!globalDesignParameters.soilParams[layerName]) {
+                        globalDesignParameters.soilParams[layerName] = {};
+                    }
+                    globalDesignParameters.soilParams[layerName][param] = newValue;
+
+                    // 3. 각 시추공의 _customParams 즉시 동기화
+                    if (boreholeData && boreholeData.length > 0) {
+                        // 현재 테이블에서 전체 파라미터 읽기
+                        const inputs = row.querySelectorAll('.soil-param-input');
+                        const currentParams = {
+                            N: parseFloat(inputs[0]?.value || 0),
+                            cu: parseFloat(inputs[1]?.value || 0),
+                            phi: parseFloat(inputs[2]?.value || 0),
+                            gamma: parseFloat(inputs[3]?.value || 0),
+                            E: parseFloat(inputs[4]?.value || 0)
+                        };
+
+                        boreholeData.forEach(borehole => {
+                            if (!borehole._customParams) borehole._customParams = {};
+                            if (!borehole._customLayerList) borehole._customLayerList = [];
+
+                            // _customParams 업데이트
+                            if (borehole._customParams[layerName]) {
+                                Object.assign(borehole._customParams[layerName], currentParams);
+                            }
+
+                            // _customLayerList 업데이트
+                            borehole._customLayerList.forEach(item => {
+                                if (item.layerName === layerName) {
+                                    Object.assign(item, currentParams);
+                                }
+                            });
+                        });
+                    }
+
+                    // 4. 입력 필드 시각적 피드백 (변경됨 표시)
+                    input.style.borderColor = '#4CAF50';
+                    input.style.backgroundColor = '#f1f8e9';
+                    setTimeout(() => {
+                        input.style.borderColor = 'var(--border-color)';
+                        input.style.backgroundColor = '';
+                    }, 1500);
+
+                    console.log(`[토질정수 변경] ${layerName}.${param} = ${newValue}`);
+                });
+                tbody._paramChangeListenerAttached = true;
+            }
         }
 
         // 수동 토질 분류 변경 핸들러
@@ -12931,7 +12167,7 @@ ${htmlContent}
             // 테이블 업데이트
             updateSoilParameterTable();
 
-            console.log(`[onManualSoilClassChange] ${layerName} → ${newBehavior}`);
+            if (DEBUG_CALC) console.log(`[onManualSoilClassChange] ${layerName} → ${newBehavior}`);
         }
 
         // 파라미터 추천 근거 표시
@@ -12974,7 +12210,7 @@ ${htmlContent}
                 message += `\n※ ${rationale.note}`;
             }
 
-            alert(message);
+            showToast(message, 'info', {title: '토질정수 산출 근거', duration: 8000});
         }
 
         // 토질정수 산출 근거 도움말 모달 표시
@@ -13303,7 +12539,7 @@ ${htmlContent}
         function showNValueDetails(layerName) {
             const stats = soilLayerStatistics[layerName];
             if (!stats || !stats.nValueDetails || stats.nValueDetails.length === 0) {
-                alert(`${layerName} 지층의 N값 데이터가 없습니다.`);
+                showToast(`${layerName} 지층의 N값 데이터가 없습니다.`, 'warning');
                 return;
             }
 
@@ -13543,7 +12779,7 @@ ${htmlContent}
         // 설정 적용 및 계산 실행
         function applyInputReviewSettings() {
             if (!boreholeData || boreholeData.length === 0) {
-                alert('시추공 데이터가 없습니다. 먼저 JSON 파일을 업로드해주세요.');
+                showToast('시추공 데이터가 없습니다. 먼저 JSON 파일을 업로드해주세요.', 'warning');
                 return;
             }
 
@@ -13609,6 +12845,20 @@ ${htmlContent}
                 globalDesignParameters.formulaCoeffs = formulaCoeffs;
                 globalDesignParameters.soilClassifications = soilClassifications;
 
+                // 3-1. soilLayerStatistics.recommended 동기화 (상세 계산에서 참조)
+                Object.keys(soilParams).forEach(layerName => {
+                    const stats = soilLayerStatistics[layerName];
+                    if (stats && stats.recommended) {
+                        stats.recommended.N = soilParams[layerName].N;
+                        stats.recommended.cu = soilParams[layerName].cu;
+                        stats.recommended.phi = soilParams[layerName].phi;
+                        stats.recommended.gamma = soilParams[layerName].gamma;
+                        stats.recommended.E = soilParams[layerName].E;
+                        // nAvg도 동기화
+                        stats.nAvg = soilParams[layerName].N;
+                    }
+                });
+
                 // 4. 말뚝 제원 및 시공 조건 동기화
                 syncHiddenInputs();
 
@@ -13664,7 +12914,7 @@ ${htmlContent}
                                 borehole._customParams[layerName] = layerParams;
                                 borehole._customLayerList.push(layerParams);
 
-                                console.log(`[applyInputReviewSettings] ${layerName}: N=${designN}, cu=${params.cu}, phi=${params.phi}`);
+                                if (DEBUG_CALC) console.log(`[applyInputReviewSettings] ${layerName}: N=${designN}, cu=${params.cu}, phi=${params.phi}`);
                             }
                         });
                     }
@@ -13698,12 +12948,12 @@ ${htmlContent}
                     `PHC ${document.getElementById('phcPileType')?.value}` :
                     `강관 Ø${document.getElementById('steelDiameter')?.value}mm`;
                 const constMethodDesc = document.getElementById('constructionMethod')?.value === 'driven' ? '항타말뚝' : '매입말뚝';
-                alert(`설정이 적용되었습니다.\n\n• ${Object.keys(soilParams).length}개 지층 토질정수 적용\n• ${boreholeData.length}개 시추공 계산 완료\n• 말뚝: ${pileTypeDesc} (${constMethodDesc})\n• 계획고: EL.${newTargetElevation}m\n• 안전율: ${formulaCoeffs.sfCompression}\n• 허용침하량: ${formulaCoeffs.allowableSettlement}mm`);
+                showToast(`${Object.keys(soilParams).length}개 지층 토질정수 적용, ${boreholeData.length}개 시추공 계산 완료`, 'success', {title: '설정 적용 완료', duration: 5000});
 
             } catch (error) {
                 hideLoading();
                 console.error('[applyInputReviewSettings] 오류:', error);
-                alert('설정 적용 중 오류가 발생했습니다: ' + error.message);
+                showToast('설정 적용 중 오류가 발생했습니다: ' + error.message, 'error');
             }
         }
 
@@ -13745,7 +12995,7 @@ ${htmlContent}
                 updateSoilParameterTable();
             }
 
-            alert('기본값으로 복원되었습니다.');
+            showToast('기본값으로 복원되었습니다.', 'success');
         }
 
         // 추정식 변경 시 토질정수 재계산
@@ -13893,6 +13143,72 @@ ${htmlContent}
             // 사이드바 요약 업데이트
             updateSidebarSummary();
         }
+
+        // 입력 검토 탭 파라미터 → 숨겨진 입력 필드 실시간 동기화
+        // 안전율, 허용침하량, 설계기준, 시공방법 등이 변경되면 즉시 숨겨진 입력을 업데이트
+        document.addEventListener('DOMContentLoaded', function() {
+            // 안전율 및 설정값 자동 동기화 대상
+            var reviewSyncPairs = [
+                { review: 'reviewSfCompression', hidden: 'sfVertical' },
+                { review: 'reviewSfPullout', hidden: 'sfPullout' },
+                { review: 'reviewSfLateral', hidden: 'sfHorizontal' },
+                { review: 'reviewAllowableSettlement', hidden: 'allowableSettlement' },
+                { review: 'endBearingAlpha', hidden: 'endBearingCoefficient' }
+            ];
+
+            reviewSyncPairs.forEach(function(pair) {
+                var reviewEl = document.getElementById(pair.review);
+                if (reviewEl) {
+                    reviewEl.addEventListener('change', function() {
+                        var hiddenEl = document.getElementById(pair.hidden);
+                        if (hiddenEl) {
+                            hiddenEl.value = this.value;
+                        }
+                        // 계산 완료 상태이면 자동 재계산
+                        if (calculationResults && calculationResults.length > 0) {
+                            performAnalysis();
+                            showToast(pair.review.replace('review', '').replace(/([A-Z])/g, ' $1').trim() + ' 변경 반영됨', 'info', { duration: 2000 });
+                        }
+                    });
+                }
+            });
+
+            // 설계기준 변경 시 자동 동기화 + 재계산
+            var reviewDesignStd = document.getElementById('reviewDesignStandard');
+            if (reviewDesignStd) {
+                reviewDesignStd.addEventListener('change', function() {
+                    syncHiddenInputs();
+                    if (calculationResults && calculationResults.length > 0) {
+                        performAnalysis();
+                        showToast('설계기준 변경 반영됨', 'info', { duration: 2000 });
+                    }
+                });
+            }
+
+            // 시공방법 변경 시 자동 동기화 + 재계산
+            var reviewConstMethod = document.getElementById('reviewConstMethod');
+            if (reviewConstMethod) {
+                reviewConstMethod.addEventListener('change', function() {
+                    syncHiddenInputs();
+                    if (calculationResults && calculationResults.length > 0) {
+                        performAnalysis();
+                        showToast('시공방법 변경 반영됨', 'info', { duration: 2000 });
+                    }
+                });
+            }
+
+            // 해머효율 변경 시 자동 동기화 + 재계산
+            var reviewHammer = document.getElementById('reviewHammerEfficiency');
+            if (reviewHammer) {
+                reviewHammer.addEventListener('change', function() {
+                    globalDesignParameters.hammerEfficiency = parseFloat(this.value) || 60;
+                    if (calculationResults && calculationResults.length > 0) {
+                        performAnalysis();
+                        showToast('해머효율 변경 반영됨', 'info', { duration: 2000 });
+                    }
+                });
+            }
+        });
 
         // 사이드바 요약 업데이트 (좌측 패널 요소가 없으면 건너뜀)
         function updateSidebarSummary() {
@@ -14217,7 +13533,7 @@ ${htmlContent}
 
                 return `
                     <tr style="border-bottom: 1px solid #F0F0F0;" onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='white'">
-                        <td style="padding: 10px 8px; font-weight: 600; color: #1F2937; font-size: 13px;">${holeNo}</td>
+                        <td style="padding: 10px 8px; font-weight: 600; color: #1F2937; font-size: 13px;">${escapeHTML(holeNo)}</td>
                         <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(gl)}</td>
                         <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(gwEL)}</td>
                         <td style="padding: 10px 8px; text-align: center; font-size: 12px; color: #333;">${formatEL(wrEL)}</td>
@@ -14226,15 +13542,15 @@ ${htmlContent}
                         <td style="padding: 10px 8px; text-align: center;">${sparkline}</td>
                         <td style="padding: 10px 8px;">${soilTags}</td>
                         <td style="padding: 10px 8px; text-align: center;">
-                            <button onclick="showBoreholeDetail('${holeNo}')"
+                            <button onclick="showBoreholeDetail('${escapeHTML(holeNo)}')"
                                 style="color: #0284C7; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 500;">
                                 로그 보기
                             </button>
                         </td>
                         <td style="padding: 10px 8px; text-align: center;">
-                            <button onclick="deleteBorehole('${holeNo}')"
+                            <button onclick="deleteBorehole('${escapeHTML(holeNo)}')"
                                 style="color: #EF4444; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;"
-                                title="${holeNo} 삭제">
+                                title="${escapeHTML(holeNo)} 삭제">
                                 X
                             </button>
                         </td>
@@ -14352,14 +13668,14 @@ ${htmlContent}
                     }
                 }
 
-                html += `<span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background: ${colors.bg}; color: ${colors.text}; display: inline-flex; align-items: center; gap: 3px;" title="${name} (${layer.depth_range || ''})">${name}${depthInfo ? '<span style="opacity:0.8;font-size:9px;">'+depthInfo+'</span>' : ''}</span>`;
+                html += `<span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; background: ${colors.bg}; color: ${colors.text}; display: inline-flex; align-items: center; gap: 3px;" title="${escapeHTML(name)} (${escapeHTML(layer.depth_range || '')})">${escapeHTML(name)}${depthInfo ? '<span style="opacity:0.8;font-size:9px;">'+depthInfo+'</span>' : ''}</span>`;
             });
 
             if (remaining > 0) {
                 if (isExpanded) {
-                    html += `<span onclick="event.stopPropagation(); collapseSoilTags('${holeNo}')" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #DBEAFE; color: #1D4ED8; cursor: pointer; border: 1px solid #93C5FD;">접기</span>`;
+                    html += `<span onclick="event.stopPropagation(); collapseSoilTags('${escapeHTML(holeNo)}')" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #DBEAFE; color: #1D4ED8; cursor: pointer; border: 1px solid #93C5FD;">접기</span>`;
                 } else {
-                    html += `<span onclick="event.stopPropagation(); expandSoilTags('${holeNo}')" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #FEF3C7; color: #92400E; cursor: pointer; border: 1px solid #FCD34D;">+${remaining} 더보기</span>`;
+                    html += `<span onclick="event.stopPropagation(); expandSoilTags('${escapeHTML(holeNo)}')" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; background: #FEF3C7; color: #92400E; cursor: pointer; border: 1px solid #FCD34D;">+${remaining} 더보기</span>`;
                 }
             }
             html += '</div>';
@@ -14425,7 +13741,7 @@ ${htmlContent}
          */
         function exportDashboardToExcel() {
             if (!boreholeData || boreholeData.length === 0) {
-                alert('내보낼 데이터가 없습니다.');
+                showToast('내보낼 데이터가 없습니다.', 'warning');
                 return;
             }
 
