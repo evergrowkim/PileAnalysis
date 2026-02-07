@@ -90,7 +90,7 @@
                 <button class="tab-button" data-tab="overview">종합 검토</button>
                 <button class="tab-button" data-tab="borehole">파일 설계 요약</button>
                 <button class="tab-button" data-tab="calculations">상세 계산</button>
-                <button class="tab-button" data-tab="sensitivity">민감도 분석</button>
+                <button class="tab-button" data-tab="pileComparison">말뚝 비교</button>
                 <button class="tab-button" data-tab="report">보고서</button>
                 <button class="tab-button" data-tab="appendix">부록</button>
             </nav>
@@ -1550,166 +1550,112 @@
                 </div>
 
                 <!-- Sensitivity Analysis Tab -->
-                <div class="tab-panel" id="tab-sensitivity">
-                    <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                        <h2 style="margin-bottom: 20px; color: var(--primary-navy);">민감도 분석</h2>
-                        
-                        <!-- Analysis Type Selection -->
-                        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #1976d2;">
-                            <label class="form-label" style="font-weight: 600; margin-bottom: 10px; color: #1565c0;">분석 유형</label>
-                            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 15px; background: #fff; border-radius: 4px; border: 1px solid #ddd;">
-                                    <input type="radio" name="sensitivityType" value="design" checked onchange="updateSensitivityTypeUI()">
-                                    <span><strong>설계 변수</strong> (말뚝규격, 근입깊이)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 15px; background: #fff; border-radius: 4px; border: 1px solid #ddd;">
-                                    <input type="radio" name="sensitivityType" value="ground" onchange="updateSensitivityTypeUI()">
-                                    <span><strong>지반 조건</strong> (N값 변화, 지지층 심도)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 8px 15px; background: #fff; border-radius: 4px; border: 1px solid #ddd;">
-                                    <input type="radio" name="sensitivityType" value="safety" onchange="updateSensitivityTypeUI()">
-                                    <span><strong>안전율/기준</strong> (안전율, 설계기준)</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Analysis Configuration -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                            <!-- Parameter 1 Selection -->
+                <div class="tab-panel" id="tab-pileComparison">
+                    <h2 style="margin-bottom: 20px; color: var(--primary-navy); font-weight: 700;">말뚝 설계 비교</h2>
+                    <!-- Input Section -->
+                    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #1976d2;">
+                        <label class="form-label" style="font-weight: 700; color: #1565c0; margin-bottom: 12px;">설계 조건 입력</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                             <div class="form-group">
-                                <label class="form-label">변수 1 (X축)</label>
-                                <select id="sensitivityParam1" class="form-select">
-                                    <option value="diameter">말뚝 규격</option>
-                                    <option value="pileType">말뚝 종류 (PHC/강관)</option>
-                                    <option value="penetration">지지층 근입깊이</option>
-                                    <option value="nValueFactor">N값 보정계수</option>
-                                    <option value="safetyFactor">안전율</option>
-                                    <option value="designStandard">설계기준</option>
-                                </select>
+                                <label class="form-label">설계하중 (kN)</label>
+                                <input type="number" id="compDesignLoad" class="form-input" value="800" min="100" step="50">
+                                <small style="color: var(--text-secondary);">1본당 설계하중</small>
                             </div>
-
-                            <!-- Parameter 2 Selection -->
                             <div class="form-group">
-                                <label class="form-label">변수 2 (Y축)</label>
-                                <select id="sensitivityParam2" class="form-select">
-                                    <option value="penetration">지지층 근입깊이</option>
-                                    <option value="diameter">말뚝 규격</option>
-                                    <option value="pileType">말뚝 종류 (PHC/강관)</option>
-                                    <option value="nValueFactor">N값 보정계수</option>
-                                    <option value="safetyFactor">안전율</option>
-                                    <option value="designStandard">설계기준</option>
-                                </select>
+                                <label class="form-label">안전율 (FS)</label>
+                                <input type="number" id="compSafetyFactor" class="form-input" value="3" min="1" max="5" step="0.1">
+                                <label style="display:flex;align-items:center;gap:5px;margin-top:5px;"><input type="checkbox" id="compOverrideSF"> 입력 검토 안전율 무시 (직접 입력)</label>
                             </div>
-                        </div>
-
-                        <!-- Range Settings -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                            <!-- Parameter 1 Range -->
-                            <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px;">
-                                <label class="form-label" style="font-weight: 600; margin-bottom: 10px;">변수 1 범위</label>
-                                <div id="param1RangeControls">
-                                    <!-- Will be populated dynamically -->
-                                </div>
+                            <div class="form-group">
+                                <label class="form-label">분석 대상 시추공</label>
+                                <select id="compBoreholeSelect" class="form-select"></select>
                             </div>
-                            
-                            <!-- Parameter 2 Range -->
-                            <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px;">
-                                <label class="form-label" style="font-weight: 600; margin-bottom: 10px;">변수 2 범위</label>
-                                <div id="param2RangeControls">
-                                    <!-- Will be populated dynamically -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Analysis Options -->
-                        <div style="background: var(--bg-tertiary); padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                            <label class="form-label" style="font-weight: 600; margin-bottom: 10px;">분석 지표</label>
-                            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                                    <input type="checkbox" id="sensitivityAllowable" checked>
-                                    <span>허용지지력 (kN)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                                    <input type="checkbox" id="sensitivitySettlement">
-                                    <span>침하량 (mm)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                                    <input type="checkbox" id="sensitivityHorizontal">
-                                    <span>수평지지력 (kN)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;" title="비용지수: 말뚝 단면적 기준 상대 비용 (현행 설계 = 100, 값이 작을수록 저렴)">
-                                    <input type="checkbox" id="sensitivityCost">
-                                    <span>비용지수</span>
-                                </label>
-                                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px; width: 100%; padding: 10px; background: var(--bg-tertiary); border-radius: 4px;">
-                                    <strong>비용지수 계산 방식:</strong><br>
-                                    • 비용지수 = (재료량 비율) × (단가 비율) × 100<br>
-                                    • 재료량 비율 = (직경/기준직경)² × (길이/기준길이)<br>
-                                    • 단가 비율 = 말뚝 종류별 단가 비율 (PHC=1.0, 강관=설정값)<br>
-                                    • 현행 설계 = 100 기준, 값이 작을수록 저렴<br>
-                                    <br>
-                                    ※ 강관/PHC 비용 비율은 "설계 기준" 섹션에서 설정할 수 있습니다.
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Borehole Selection -->
-                        <div class="form-group" style="margin-bottom: 20px;">
-                            <label class="form-label">분석 대상 시추공</label>
-                            <select id="sensitivityBoreholeSelect" class="form-select">
-                                <!-- Will be populated dynamically -->
-                            </select>
-                        </div>
-
-                        <!-- Action Button -->
-                        <div class="btn-group">
-                            <button class="btn btn-primary" onclick="runSensitivityAnalysis()">분석 실행</button>
-                            <button class="btn btn-secondary" onclick="resetSensitivityAnalysis()">초기화</button>
                         </div>
                     </div>
-
-                    <!-- Results Section -->
-                    <div id="sensitivityResults" style="display: none;">
-                        <!-- Heatmap Chart -->
-                        <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">히트맵 분석</h3>
-                            <div class="chart-wrapper" style="height: 500px;">
-                                <canvas id="sensitivityHeatmapChart"></canvas>
+                    <!-- Unit Cost Panel (collapsible) -->
+                    <div style="background: #f5f5f5; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
+                        <div onclick="toggleCompCostPanel()" style="padding: 12px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; color: #555;">m당 단가 설정 (시장 기본값 적용됨)</span>
+                            <span id="compCostToggleIcon" style="font-size: 1.2rem;">&#9660;</span>
+                        </div>
+                        <div id="compCostPanel" style="display: none; padding: 15px 20px; border-top: 1px solid #e0e0e0;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <h4 style="margin-bottom: 10px; color: #1976d2;">PHC 말뚝 (원/m)</h4>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                        <label>400-A: <input type="number" id="compCost_phc_400A" class="form-input" value="85000" style="width:100px;"></label>
+                                        <label>450-A: <input type="number" id="compCost_phc_450A" class="form-input" value="105000" style="width:100px;"></label>
+                                        <label>500-A: <input type="number" id="compCost_phc_500A" class="form-input" value="125000" style="width:100px;"></label>
+                                        <label>500-B: <input type="number" id="compCost_phc_500B" class="form-input" value="130000" style="width:100px;"></label>
+                                        <label>600-A: <input type="number" id="compCost_phc_600A" class="form-input" value="175000" style="width:100px;"></label>
+                                        <label>600-B: <input type="number" id="compCost_phc_600B" class="form-input" value="180000" style="width:100px;"></label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 style="margin-bottom: 10px; color: #e65100;">강관 말뚝 (원/m)</h4>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                        <label>318.5: <input type="number" id="compCost_steel_319" class="form-input" value="180000" style="width:100px;"></label>
+                                        <label>355.6: <input type="number" id="compCost_steel_356" class="form-input" value="200000" style="width:100px;"></label>
+                                        <label>406.4: <input type="number" id="compCost_steel_406" class="form-input" value="240000" style="width:100px;"></label>
+                                        <label>457.2: <input type="number" id="compCost_steel_457" class="form-input" value="280000" style="width:100px;"></label>
+                                        <label>508.0: <input type="number" id="compCost_steel_508" class="form-input" value="330000" style="width:100px;"></label>
+                                        <label>558.8: <input type="number" id="compCost_steel_559" class="form-input" value="370000" style="width:100px;"></label>
+                                        <label>609.6: <input type="number" id="compCost_steel_610" class="form-input" value="420000" style="width:100px;"></label>
+                                        <label>711.2: <input type="number" id="compCost_steel_711" class="form-input" value="520000" style="width:100px;"></label>
+                                        <label>812.8: <input type="number" id="compCost_steel_813" class="form-input" value="640000" style="width:100px;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary" style="margin-top:10px;" onclick="resetCompCostDefaults()">기본값 복원</button>
+                        </div>
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="btn-group" style="margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="runPileComparison()">비교 분석 실행</button>
+                        <button class="btn btn-secondary" onclick="resetPileComparison()">초기화</button>
+                    </div>
+                    <!-- Results Section (hidden until run) -->
+                    <div id="compResults" style="display: none;">
+                        <!-- Summary Cards -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; text-align: center; border: 2px solid #4caf50;">
+                                <div style="color: #2e7d32; font-weight: 600;">최적 말뚝</div>
+                                <div id="compOptimalLabel" style="font-size: 1.5rem; font-weight: 700; color: #1b5e20; margin-top: 5px;">-</div>
+                            </div>
+                            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; text-align: center; border: 2px solid #1976d2;">
+                                <div style="color: #1565c0; font-weight: 600;">최소 비용</div>
+                                <div id="compMinCostLabel" style="font-size: 1.5rem; font-weight: 700; color: #0d47a1; margin-top: 5px;">-</div>
+                            </div>
+                            <div style="background: #fff3e0; padding: 20px; border-radius: 8px; text-align: center; border: 2px solid #f57c00;">
+                                <div style="color: #e65100; font-weight: 600;">분석 대상</div>
+                                <div id="compAnalyzedCount" style="font-size: 1.5rem; font-weight: 700; color: #bf360c; margin-top: 5px;">-</div>
                             </div>
                         </div>
-
-                        <!-- Comparison Table -->
-                        <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">비교 분석</h3>
-                            <div style="overflow-x: auto;">
-                                <table class="data-table" id="sensitivityComparisonTable">
-                                    <thead>
-                                        <tr>
-                                            <th>구분</th>
-                                            <th>현행 설계</th>
-                                            <th>대안 1</th>
-                                            <th>대안 2</th>
-                                            <th>대안 3</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="sensitivityComparisonTableBody">
-                                        <!-- Will be populated dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
+                        <!-- Condition Banner -->
+                        <div style="background: var(--bg-tertiary); padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <span id="compConditionText" style="font-weight: 600;"></span>
+                            <button class="btn btn-secondary" style="font-size: 0.85rem; padding: 4px 12px;" onclick="showCompConditionChange()">조건 변경</button>
                         </div>
-
-                        <!-- Detailed Results Table -->
-                        <div style="background: var(--bg-primary); padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <h3 style="margin-bottom: 15px; color: var(--primary-navy);">상세 결과</h3>
-                            <div style="overflow-x: auto;">
-                                <table class="data-table" id="sensitivityDetailTable">
-                                    <thead id="sensitivityDetailTableHead">
-                                        <!-- Will be populated dynamically -->
-                                    </thead>
-                                    <tbody id="sensitivityDetailTableBody">
-                                        <!-- Will be populated dynamically -->
-                                    </tbody>
+                        <!-- Comparison Table (top 5) -->
+                        <h3 style="margin-bottom: 10px; color: var(--primary-navy);">말뚝 비교 결과</h3>
+                        <div style="overflow-x: auto; margin-bottom: 20px;">
+                            <table class="data-table">
+                                <thead id="compTableHeader"></thead>
+                                <tbody id="compTableBody"></tbody>
+                            </table>
+                        </div>
+                        <!-- Recommendation Detail -->
+                        <div id="compRecommendationDetail" style="margin-bottom: 20px;"></div>
+                        <!-- All Results (collapsible) -->
+                        <div style="background: #f5f5f5; border-radius: 8px; border: 1px solid #e0e0e0;">
+                            <div id="compAllResultsToggle" onclick="toggleCompAllResults()" style="padding: 12px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 600; color: #555;">전체 15종 결과 보기</span>
+                                <span id="compAllResultsHead">&#9660;</span>
+                            </div>
+                            <div id="compAllResultsPanel" style="display: none; padding: 15px 20px; border-top: 1px solid #e0e0e0; overflow-x: auto;">
+                                <table class="data-table">
+                                    <thead><tr><th>순위</th><th>말뚝 종류</th><th>규격</th><th>Qa (kN)</th><th>침하 (mm)</th><th>소요 본수</th><th>비용</th><th>점수</th><th>판정</th></tr></thead>
+                                    <tbody id="compAllResultsBody"></tbody>
                                 </table>
                             </div>
                         </div>

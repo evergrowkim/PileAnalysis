@@ -3,7 +3,7 @@
         let selectedBorehole = null;
         let calculationResults = [];
         let charts = {};
-        let sensitivityChart = null;
+        let pileComparisonResults = [];
 
         // ============================================================
         // Debug Configuration
@@ -309,6 +309,31 @@
                     E_kPa: 2.00e8,
                     E_MPa: 200000
                 }
+            }
+        };
+
+        // ============================================================
+        // 말뚝 비교 분석용 기본 단가 (원/m)
+        // ============================================================
+        const PILE_UNIT_COSTS = {
+            phc: {
+                '400-A': { unitCost: 85000, label: 'PHC 400-A' },
+                '450-A': { unitCost: 105000, label: 'PHC 450-A' },
+                '500-A': { unitCost: 125000, label: 'PHC 500-A' },
+                '500-B': { unitCost: 130000, label: 'PHC 500-B' },
+                '600-A': { unitCost: 175000, label: 'PHC 600-A' },
+                '600-B': { unitCost: 180000, label: 'PHC 600-B' }
+            },
+            steel: {
+                '318.5': { unitCost: 180000, label: '강관 318.5' },
+                '355.6': { unitCost: 200000, label: '강관 355.6' },
+                '406.4': { unitCost: 240000, label: '강관 406.4' },
+                '457.2': { unitCost: 280000, label: '강관 457.2' },
+                '508.0': { unitCost: 330000, label: '강관 508.0' },
+                '558.8': { unitCost: 370000, label: '강관 558.8' },
+                '609.6': { unitCost: 420000, label: '강관 609.6' },
+                '711.2': { unitCost: 520000, label: '강관 711.2' },
+                '812.8': { unitCost: 640000, label: '강관 812.8' }
             }
         };
 
@@ -1932,7 +1957,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeEventListeners();
             initializeDefaultData();
-            initializeSensitivityAnalysis();
+            initializePileComparison();
 
             // 대시보드 검색 디바운싱
             var dashSearch = document.getElementById('dashboardSearch');
@@ -2026,7 +2051,7 @@
                         calculationResults = updatedResults;
                 updateSummaryTable();
                 updateCalculations();
-                updateSensitivityBoreholeSelect();
+                updateCompBoreholeSelect();
                     }
                 });
             }
@@ -2323,10 +2348,15 @@
                 }, 100);
             }
             
-            // Initialize sensitivity analysis when tab is opened
-            if (tabName === 'sensitivity') {
-                updateSensitivityBoreholeSelect();
-                updateSensitivityRangeControls();
+            // Initialize pile comparison when tab is opened
+            if (tabName === 'pileComparison') {
+                        updateCompBoreholeSelect();
+                        const compSfInput = document.getElementById('compSafetyFactor');
+                        const compOverride = document.getElementById('compOverrideSF');
+                        if (compSfInput && compOverride && !compOverride.checked) {
+                            const mainSF = document.getElementById('sfVertical');
+                            if (mainSF) compSfInput.value = mainSF.value;
+                        }
             }
         }
 
@@ -2510,7 +2540,10 @@
                 }
             }
 
-            return null;
+            // Priority 3: Fallback - 표고값이 없는 시추주상도의 경우 (예: "(EL+)현지반고 m" 등 플레이스홀더)
+            // 상대적 깊이(GL-) 기준으로 계산이 가능하므로 기본값 0.0m 사용
+            console.warn(`[getGroundSurfaceElevation] ${metadata.HOLE_NO || 'Unknown'}: 표고값 파싱 실패 → 기본값 0.0m 적용 (GROUND_SURFACE_LEVEL="${metadata.GROUND_SURFACE_LEVEL || ''}", Excavation_level="${metadata.Excavation_level || ''}")`);
+            return 0.0;
         }
 
         // 중복된 깊이 범위를 가진 지층 제거 함수
@@ -10659,475 +10692,445 @@ ${htmlContent}
         }
 
         // ============================================================
-        // Sensitivity Analysis Functions
+        // Pile Comparison Functions (말뚝 설계 비교)
         // ============================================================
-        
-        function initializeSensitivityAnalysis() {
-            // Add event listeners for parameter changes
-            const param1Select = document.getElementById('sensitivityParam1');
-            const param2Select = document.getElementById('sensitivityParam2');
-            
-            if (param1Select) {
-                param1Select.addEventListener('change', updateSensitivityRangeControls);
-            }
-            if (param2Select) {
-                param2Select.addEventListener('change', updateSensitivityRangeControls);
-            }
-        }
 
-        function updateSensitivityBoreholeSelect() {
-            const select = document.getElementById('sensitivityBoreholeSelect');
-            if (!select) return;
-            
-            select.innerHTML = '';
-            if (boreholeData && boreholeData.length > 0) {
-                boreholeData.forEach((borehole, index) => {
-                    const option = document.createElement('option');
-                    option.value = index;
-                    option.textContent = borehole.hole_no || `시추공 ${index + 1}`;
-                    if (index === 0) option.selected = true;
-                    select.appendChild(option);
+        function initializePileComparison() {
+            const sfInput = document.getElementById('compSafetyFactor');
+            const overrideCB = document.getElementById('compOverrideSF');
+            if (sfInput && overrideCB) {
+                const mainSF = document.getElementById('sfVertical');
+                if (mainSF && !overrideCB.checked) {
+                    sfInput.value = mainSF.value;
+                }
+                overrideCB.addEventListener('change', function() {
+                    if (!this.checked && mainSF) sfInput.value = mainSF.value;
                 });
-            } else {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = '시추공 데이터가 없습니다';
-                select.appendChild(option);
             }
         }
 
-        function updateSensitivityRangeControls() {
-            const param1 = document.getElementById('sensitivityParam1')?.value || 'diameter';
-            const param2 = document.getElementById('sensitivityParam2')?.value || 'penetration';
-            
-            updateParamRangeControl('param1RangeControls', param1);
-            updateParamRangeControl('param2RangeControls', param2);
+        function updateCompBoreholeSelect() {
+            const sel = document.getElementById('compBoreholeSelect');
+            if (!sel) return;
+            sel.innerHTML = '';
+            if (boreholeData && boreholeData.length > 0) {
+                boreholeData.forEach(function(bh) {
+                    const opt = document.createElement('option');
+                    opt.value = bh.hole_no;
+                    opt.textContent = bh.hole_no;
+                    sel.appendChild(opt);
+                });
+            }
         }
 
-        // 민감도 분석 유형별 UI 업데이트
-        function updateSensitivityTypeUI() {
-            const sensitivityType = document.querySelector('input[name="sensitivityType"]:checked')?.value || 'design';
-            const param1Select = document.getElementById('sensitivityParam1');
-            const param2Select = document.getElementById('sensitivityParam2');
-
-            if (!param1Select || !param2Select) return;
-
-            // 유형별 기본 변수 설정
-            if (sensitivityType === 'design') {
-                param1Select.value = 'diameter';
-                param2Select.value = 'penetration';
-            } else if (sensitivityType === 'ground') {
-                param1Select.value = 'nValueFactor';
-                param2Select.value = 'penetration';
-            } else if (sensitivityType === 'safety') {
-                param1Select.value = 'safetyFactor';
-                param2Select.value = 'designStandard';
-            }
-
-            updateSensitivityRangeControls();
-        }
-
-        function updateParamRangeControl(containerId, paramType) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-
-            let html = '';
-
-            switch(paramType) {
-                case 'diameter':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>직경:</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.4" checked> Ø400
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.45" checked> Ø450
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.5" checked> Ø500
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.6" checked> Ø600
-                            </label>
-                        </div>
-                    `;
-                    break;
-                case 'nValueFactor':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>N값 보정:</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.7"> ×0.7 (보수적)
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.85" checked> ×0.85
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="1.0" checked> ×1.0 (현행)
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="1.15" checked> ×1.15
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="1.3"> ×1.3 (낙관적)
-                            </label>
-                        </div>
-                        <div style="font-size: 0.8rem; color: #666; margin-top: 8px;">
-                            ※ 실제 N값에 보정계수를 곱하여 지반조건 변화에 따른 지지력 변화를 분석합니다.
-                        </div>
-                    `;
-                    break;
-                case 'safetyFactor':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>안전율:</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="2.0"> 2.0
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="2.5" checked> 2.5
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="3.0" checked> 3.0 (현행)
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="3.5" checked> 3.5
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="4.0"> 4.0
-                            </label>
-                        </div>
-                    `;
-                    break;
-                case 'designStandard':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>설계기준:</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="structural_foundation_2015" checked> 구조물기초(2015)
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="highway_bridge_2015" checked> 도로교(2015)
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="building_foundation_2005" checked> 건축기초(2005)
-                            </label>
-                        </div>
-                    `;
-                    break;
-                case 'penetration':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>근입깊이:</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="0.5" checked> 0.5m
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="1.0" checked> 1.0m
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="1.5" checked> 1.5m
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="2.0" checked> 2.0m
-                            </label>
-                        </div>
-                    `;
-                    break;
-                case 'endBearingCoeff':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>계수 (kN/m²):</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="250" checked> 250
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="300" checked> 300
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="350" checked> 350
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="400" checked> 400
-                            </label>
-                        </div>
-                    `;
-                    break;
-                case 'pileType':
-                    html = `
-                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <span>말뚝 종류:</span>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="phc" checked> PHC
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" class="param-value" value="steel" checked> 강관
-                            </label>
-                        </div>
-                    `;
-                    break;
-            }
-            
-            container.innerHTML = html;
-        }
-
-        function runSensitivityAnalysis() {
-            if (!calculationResults || calculationResults.length === 0) {
-                showToast('먼저 통합 분석을 실행해주세요.', 'warning');
-                return;
-            }
-            
-            const boreholeIndex = parseInt(document.getElementById('sensitivityBoreholeSelect').value);
-            if (isNaN(boreholeIndex) || !boreholeData[boreholeIndex]) {
-                showToast('시추공을 선택해주세요.', 'warning');
-                return;
-            }
-            
-            const param1 = document.getElementById('sensitivityParam1').value;
-            const param2 = document.getElementById('sensitivityParam2').value;
-            
-            if (param1 === param2) {
-                showToast('변수 1과 변수 2는 서로 다른 값을 선택해야 합니다.', 'warning');
-                return;
-            }
-            
-            // Get selected values for each parameter
-            const param1Values = Array.from(document.querySelectorAll('#param1RangeControls .param-value:checked')).map(cb => {
-                if (param1 === 'pileType' || param1 === 'designStandard') return cb.value; // String value
-                return parseFloat(cb.value);
-            });
-            const param2Values = Array.from(document.querySelectorAll('#param2RangeControls .param-value:checked')).map(cb => {
-                if (param2 === 'pileType' || param2 === 'designStandard') return cb.value; // String value
-                return parseFloat(cb.value);
-            });
-            
-            if (param1Values.length === 0 || param2Values.length === 0) {
-                showToast('각 변수에 대해 최소 1개 이상의 값을 선택해주세요.', 'warning');
-                return;
-            }
-            
-            // Get analysis metrics
-            const metrics = {
-                allowable: document.getElementById('sensitivityAllowable').checked,
-                settlement: document.getElementById('sensitivitySettlement').checked,
-                horizontal: document.getElementById('sensitivityHorizontal').checked,
-                cost: document.getElementById('sensitivityCost').checked
-            };
-            
-            if (!metrics.allowable && !metrics.settlement && !metrics.horizontal && !metrics.cost) {
-                showToast('최소 1개 이상의 분석 지표를 선택해주세요.', 'warning');
-                return;
-            }
-            
-            showLoading();
-            
-            // Perform sensitivity analysis
-            const results = performSensitivityCalculation(boreholeIndex, param1, param2, param1Values, param2Values, metrics);
-            
-            // Display results
-            displaySensitivityResults(results, param1, param2, param1Values, param2Values, metrics);
-            
-            hideLoading();
-        }
-
-        function performSensitivityCalculation(boreholeIndex, param1, param2, param1Values, param2Values, metrics) {
-            const borehole = boreholeData[boreholeIndex];
-            const baseResult = calculationResults[boreholeIndex];
-            const results = [];
-
-            // Get base values
-            const basePile = getCurrentPile();
-            const baseDiameter = basePile.diameter;
-            const basePileType = basePile.type || 'phc';
-            const basePenetration = parseFloat(document.getElementById('penetrationDepth')?.value) || 1.0;
-            const baseSafetyFactor = parseFloat(document.getElementById('sfVertical').value) || 3.0;
-            const baseEndBearingCoeff = parseFloat(document.getElementById('endBearingCoefficient').value) || 300;
-            const baseDesignStandard = getCurrentDesignStandard();
-            const baseNValueFactor = 1.0;
-
-            // Calculate for each combination
-            for (let i = 0; i < param1Values.length; i++) {
-                for (let j = 0; j < param2Values.length; j++) {
-                    const p1Value = param1Values[i];
-                    const p2Value = param2Values[j];
-
-                    // Create parameter combination
-                    const params = {
-                        diameter: baseDiameter,
-                        pileType: basePileType,
-                        penetration: basePenetration,
-                        safetyFactor: baseSafetyFactor,
-                        endBearingCoeff: baseEndBearingCoeff,
-                        designStandard: baseDesignStandard,
-                        nValueFactor: baseNValueFactor
-                    };
-
-                    // Apply parameter values
-                    const applyParam = (paramName, value) => {
-                        switch(paramName) {
-                            case 'diameter': params.diameter = parseFloat(value); break;
-                            case 'pileType': params.pileType = value; break;
-                            case 'penetration': params.penetration = parseFloat(value); break;
-                            case 'endBearingCoeff': params.endBearingCoeff = parseFloat(value); break;
-                            case 'safetyFactor': params.safetyFactor = parseFloat(value); break;
-                            case 'designStandard': params.designStandard = value; break;
-                            case 'nValueFactor': params.nValueFactor = parseFloat(value); break;
-                        }
-                    };
-
-                    applyParam(param1, p1Value);
-                    applyParam(param2, p2Value);
-
-                    // Calculate with modified parameters
-                    const calcResult = calculateSensitivityCase(borehole, params, baseResult);
-
-                    results.push({
-                        param1Value: p1Value,
-                        param2Value: p2Value,
-                        param1Index: i,
-                        param2Index: j,
-                        ...calcResult
+        function buildPileCandidateList() {
+            var candidates = [];
+            // PHC piles (6 specs)
+            var phcSpecs = ['400-A','450-A','500-A','500-B','600-A','600-B'];
+            phcSpecs.forEach(function(spec) {
+                var pile = null;
+                for (var key in PHC_PILES) {
+                    if (key === spec) { pile = PHC_PILES[key]; break; }
+                }
+                if (pile) {
+                    candidates.push({
+                        type: 'phc', spec: spec,
+                        label: 'PHC ' + spec,
+                        diameter: pile.diameter / 1000,
+                        thickness: pile.thickness / 1000,
+                        area: pile.area / 1e6,
+                        crossArea: pile.crossArea ? pile.crossArea / 1e6 : Math.PI / 4 * Math.pow(pile.diameter / 1000, 2),
+                        I: pile.I, allowable: pile.allowable,
+                        pileObj: pile
                     });
                 }
-            }
-
-            return results;
+            });
+            // Steel pipes (9 diameters with median thickness)
+            var steelDias = [318.5, 355.6, 406.4, 457.2, 508.0, 558.8, 609.6, 711.2, 812.8];
+            steelDias.forEach(function(dia) {
+                var specs = STEEL_PIPE_SPECS.diameters[dia];
+                if (!specs) return;
+                var thicknesses = specs.thickness;
+                var medianThk = thicknesses[Math.floor(thicknesses.length / 2)];
+                var D = dia / 1000;
+                var t = medianThk / 1000;
+                var d_inner = D - 2 * t;
+                var A = Math.PI / 4 * (D * D - d_inner * d_inner);
+                var I_val = Math.PI / 64 * (Math.pow(D, 4) - Math.pow(d_inner, 4));
+                var crossArea = Math.PI / 4 * D * D;
+                candidates.push({
+                    type: 'steel', spec: String(dia),
+                    label: '강관 ' + dia,
+                    diameter: D, thickness: t,
+                    area: A, crossArea: crossArea,
+                    I: I_val, allowable: A * (235 / 1.5) * 1000,
+                    pileObj: null
+                });
+            });
+            return candidates;
         }
 
-        function calculateSensitivityCase(borehole, params, baseResult) {
-            // 민감도 분석용 계산 (설계기준별 공식 적용)
-            const pile = getPileByDiameterAndType(params.diameter, params.pileType);
-            const D = params.diameter;
-            const nFactor = params.nValueFactor || 1.0;
-            const designStd = params.designStandard || 'structural_foundation_2015';
+        function getCompUnitCost(pileType, spec) {
+            var inputId;
+            if (pileType === 'phc') {
+                inputId = 'compCost_phc_' + spec.replace('-', '');
+            } else {
+                inputId = 'compCost_steel_' + Math.round(parseFloat(spec));
+            }
+            var el = document.getElementById(inputId);
+            if (el) return parseFloat(el.value) || 0;
+            var defaults = PILE_UNIT_COSTS[pileType];
+            if (defaults && defaults[spec]) return defaults[spec].unitCost;
+            return 0;
+        }
 
-            // Get original ground elevation
-            const originalElevation = getGroundSurfaceElevation(borehole.metadata) || 0;
-            const targetElevation = parseFloat(document.getElementById('targetGroundElevation').value) || originalElevation;
-
+        function calculatePileComparisonCase(borehole, candidate, safetyFactor) {
+            var designStandard = getCurrentDesignStandard();
+            var constructionMethod = getCurrentConstructionMethod();
+            var constructionType = CONSTRUCTION_METHODS[constructionMethod] ? CONSTRUCTION_METHODS[constructionMethod].type : 'pre_bored';
+            var D = candidate.diameter;
+            var originalElevation = getGroundSurfaceElevation(borehole.metadata);
+            if (originalElevation === null || isNaN(originalElevation)) originalElevation = 0;
+            var targetElevation = borehole._targetElevation !== undefined ? borehole._targetElevation : originalElevation;
             // Find bearing layer
-            const bearingLayer = findBearingLayer(borehole);
-            if (!bearingLayer) {
-                return { Qa: 0, Qu: 0, St: 0, Ha: 0, safetyFactor: params.safetyFactor, costIndex: 100 };
-            }
-
-            // Calculate pile length with modified penetration
-            const bearingDepth = getBearingLayerDepth(borehole, bearingLayer);
-            const pileTipDepth = bearingDepth + params.penetration;
-            const pileLength = pileTipDepth;
-
-            // Determine pile type for formula selection
-            const method = document.getElementById('constructionMethod')?.value || 'cement_paste';
-            const pileType = CONSTRUCTION_METHODS[method]?.type || 'pre_bored';
-
-            // Calculate skin friction using design standard formulas
-            let Qs = 0;
-
-            for (let depth = 0; depth < pileLength; depth += 1) {
-                const layer = findLayerAtDepth(borehole, depth);
-                if (!layer) continue;
-
-                const rawN = getAverageN(layer);
-                const N = rawN * nFactor;  // N값 보정계수 적용
-                const N60 = N * (globalDesignParameters.hammerEfficiency || 60) / 60;
-                const soilType = getEffectiveSoilType(layer.soil_name);
-                const cu = estimateCu(N, soilType);
-                const As = Math.PI * D * 1.0;
-
-                // 설계기준별 주면마찰력 계산
-                const fs = calculateSkinFriction(designStd, pileType, soilType, N, N60, cu, depth);
-                Qs += fs * As;
-            }
-            
-            // Calculate end bearing using design standard formulas
-            const rawTipN = getAverageN(bearingLayer);
-            const tipN = rawTipN * nFactor;  // N값 보정계수 적용
-            const bearingSoilType = getEffectiveSoilType(bearingLayer.soil_name);
-            const bearingCu = estimateCu(tipN, bearingSoilType);
-            const Ap = Math.PI * D * D / 4;
-
-            // 설계기준별 선단지지력 계산
-            const qp = calculateEndBearing(designStd, pileType, bearingSoilType, tipN, bearingCu, method);
-            const Qp = qp * Ap;
-
-            const Qu = Qs + Qp;
-            const Qa_soil = Qu / params.safetyFactor;
-            
-            // Apply splice reduction (same logic as calculateForBorehole)
-            const spliceMethod = document.getElementById('spliceMethod').value;
-            const PILE_UNIT_LENGTH = 15.0;
-            // 이음 개소 수 = 필요 말뚝 본 수 - 1
-            const numberOfPiles = Math.ceil(pileLength / PILE_UNIT_LENGTH);
-            const numberOfSplices = Math.max(0, numberOfPiles - 1);
-            
-            let spliceReductionRate = 0.0;
-            if (spliceMethod !== 'none' && numberOfSplices > 0) {
-                if (spliceMethod === 'welding') {
-                    spliceReductionRate = numberOfSplices * 5.0;
-                } else if (spliceMethod === 'bolting') {
-                    spliceReductionRate = numberOfSplices * 10.0;
-                } else if (spliceMethod === 'filled') {
-                    for (let i = 0; i < numberOfSplices; i++) {
-                        spliceReductionRate += (i < 2 ? 20.0 : 30.0);
+            var bearingType = document.getElementById('bearingLayer').value;
+            var bearingDepth = 15;
+            if (borehole.soil_data && Array.isArray(borehole.soil_data)) {
+                for (var i = 0; i < borehole.soil_data.length; i++) {
+                    var layer = borehole.soil_data[i];
+                    var soilName = layer.soil_name || '';
+                    var isBearing = false;
+                    if (bearingType === 'weathered_rock') {
+                        if (soilName.includes('풍화암')) isBearing = true;
+                        else if (soilName.includes('풍화토') || soilName.includes('풍화잔류토')) {
+                            if (getAverageN(layer) >= 50) isBearing = true;
+                        }
+                    } else if (bearingType === 'soft_rock') {
+                        if (soilName.includes('연암') || soilName.includes('풍화암')) isBearing = true;
+                    } else {
+                        if (getAverageN(layer) >= 50) isBearing = true;
+                    }
+                    if (isBearing) {
+                        var depthMatch = layer.depth_range ? layer.depth_range.match(/([\d.]+)~([\d.]+)/) : null;
+                        if (depthMatch) bearingDepth = parseFloat(depthMatch[1]);
+                        break;
                     }
                 }
             }
-            spliceReductionRate = Math.min(spliceReductionRate, 100.0);
-            const spliceFactor = 1.0 - (spliceReductionRate / 100.0);
-            
-            const Qa_material = (pile.allowable || 0) * spliceFactor;
-            const Qa = Math.min(Qa_soil, Qa_material);
-            
-            // Simplified settlement
-            // 구조물 기초 설계기준 해설 표 5.3.10 기준
-            const E = params.pileType === 'steel' ? PILE_ELASTIC_MODULUS.STEEL.E_kPa : PILE_ELASTIC_MODULUS.PHC.E_kPa;
-            const Se = (Qa * pileLength) / (pile.area * E) * 1000;
-            const Es = 2500 * tipN;
-            const q_applied = Qa / Ap;
-            const Sp = (q_applied * D * 0.85) / Es * 1000;
-            const St = Se + Sp;
-            
-            // Cost index (relative to base)
-            // 비용지수 = (재료량 비율) × (단가 비율)
-            // 재료량 = 단면적 × 길이 (단면적은 직경²에 비례)
-            // 단가 비율 = 말뚝 종류별 단가 비율
-            const basePile = getCurrentPile();
-            const baseDiameter = basePile.diameter;
-            const basePileType = basePile.type || 'phc';
-            const baseLength = pileLength; // Use current calculation's pile length
-            
-            // Get user-defined cost ratio (강관/PHC 비용 비율)
-            const steelPhcCostRatio = parseFloat(document.getElementById('steelPhcCostRatio')?.value) || 1.5;
-            
-            // Cost factor: PHC = 1.0, Steel = user-defined ratio
-            const pileTypeCostFactor = params.pileType === 'steel' ? steelPhcCostRatio : 1.0;
-            const basePileTypeCostFactor = basePileType === 'steel' ? steelPhcCostRatio : 1.0;
-            
-            // Material volume ratio = (area ratio) × (length ratio)
-            // Area ratio = (diameter/baseDiameter)²
-            // Length ratio = (pileLength/baseLength)
-            const areaRatio = Math.pow(params.diameter / baseDiameter, 2);
-            const lengthRatio = pileLength / baseLength;
-            const materialVolumeRatio = areaRatio * lengthRatio;
-            
-            // Cost index = material volume ratio × unit cost ratio
-            const costIndex = materialVolumeRatio * (pileTypeCostFactor / basePileTypeCostFactor) * 100;
-            
-            // Calculate horizontal capacity
-            const horizontalResult = calculateHorizontalCapacity(borehole, pile, pileLength, D);
-            const Ha = horizontalResult.Ha_final || 0;
-            
+            // Penetration depth
+            var penetrationStr = document.getElementById('penetrationDepth').value;
+            var penetrationD = parseFloat(penetrationStr) || 3;
+            var penetrationDepth = penetrationD * D;
+            var pileTipDepthFromOriginal = bearingDepth + penetrationDepth;
+            var elevationDiff = targetElevation - originalElevation;
+            var pileLength;
+            if (elevationDiff > 0) {
+                pileLength = pileTipDepthFromOriginal + elevationDiff;
+            } else {
+                pileLength = pileTipDepthFromOriginal + elevationDiff;
+            }
+            pileLength = Math.max(pileLength, 0);
+            if (pileLength <= 0) return null;
+            // Skin friction
+            var Qs = 0;
+            var perimeter = Math.PI * D;
+            if (borehole.soil_data) {
+                var prevDepth = Math.max(0, elevationDiff > 0 ? 0 : Math.abs(elevationDiff));
+                for (var j = 0; j < borehole.soil_data.length; j++) {
+                    var sl = borehole.soil_data[j];
+                    var drMatch = sl.depth_range ? sl.depth_range.match(/([\d.]+)~([\d.]+)/) : null;
+                    if (!drMatch) continue;
+                    var layerTop = parseFloat(drMatch[1]);
+                    var layerBot = parseFloat(drMatch[2]);
+                    var segTop = Math.max(layerTop, prevDepth);
+                    var segBot = Math.min(layerBot, pileTipDepthFromOriginal);
+                    if (segTop >= segBot) continue;
+                    var segLen = segBot - segTop;
+                    var midDepth = (segTop + segBot) / 2;
+                    var N = getNValueAtDepth(borehole, midDepth);
+                    N = Math.min(N, 50);
+                    var soilClass = classifySoilByName(sl.soil_name || '');
+                    var fs;
+                    if (soilClass === 'cohesive') {
+                        var cu = N <= 15 ? N * 6.25 : (N <= 30 ? 75 + (N - 15) * 3.33 : 125);
+                        var alpha = cu <= 25 ? 1.0 : (cu <= 50 ? 0.9 : (cu <= 100 ? 0.7 : 0.5));
+                        fs = alpha * cu;
+                    } else {
+                        fs = 2.5 * N;
+                    }
+                    if (constructionType === 'driven') fs *= 1.0;
+                    else if (constructionType === 'vibro') fs *= 0.8;
+                    else fs *= 0.7;
+                    Qs += fs * perimeter * segLen;
+                }
+            }
+            // End bearing
+            var tipN = getNValueAtDepth(borehole, pileTipDepthFromOriginal);
+            tipN = Math.min(tipN, 50);
+            var Ap = candidate.crossArea;
+            var endBearingCoeff = parseFloat(document.getElementById('bearingLayer').dataset.endBearingCoeff || '300');
+            if (tipN >= 50) endBearingCoeff = 300;
+            else if (tipN >= 30) endBearingCoeff = 200;
+            else endBearingCoeff = 150;
+            var Qp = endBearingCoeff * tipN * Ap;
+            var Qu = Qs + Qp;
+            var Qa_ground = Qu / safetyFactor;
+            // Material capacity
+            var Qa_material = candidate.allowable;
+            // Splice reduction
+            var spliceMethod = document.getElementById('spliceMethod').value;
+            var spliceCount = Math.max(0, Math.ceil(pileLength / 12) - 1);
+            var spliceFactor = 1.0;
+            if (spliceCount > 0) {
+                if (spliceMethod === 'welding') spliceFactor = Math.pow(0.95, spliceCount);
+                else if (spliceMethod === 'mechanical') spliceFactor = Math.pow(0.90, spliceCount);
+                else spliceFactor = Math.pow(0.85, spliceCount);
+            }
+            Qa_material *= spliceFactor;
+            var Qa = Math.min(Qa_ground, Qa_material);
+            var governedBy = Qa_ground <= Qa_material ? 'ground' : 'material';
+            // Settlement (Vesic 3-component)
+            var Ep = candidate.type === 'steel' ? PILE_ELASTIC_MODULUS.STEEL.E_kPa : PILE_ELASTIC_MODULUS.PHC.E_kPa;
+            var Se = (Qa * pileLength) / (candidate.area * Ep) * 1000;
+            var Cs = 0.5;
+            var Sp_denom = D * tipN * 10;
+            var Sp = Sp_denom > 0 ? (Qa - Cs * Qs) / Sp_denom * 1000 : 0;
+            var settlementCoeffs = getSettlementCoefficients();
+            var Cp_val = settlementCoeffs.Cp || 0.12;
+            var Sps_denom = (bearingDepth > 0 ? bearingDepth : pileLength) * tipN * 10;
+            var Sps = Sps_denom > 0 ? (Cs * Qs * Cp_val) / Sps_denom * 1000 : 0;
+            var St = Se + Sp + Sps;
+            // Horizontal capacity (simplified)
+            var Ha = 0;
+            try {
+                var kh0 = 0.2 * Math.pow(getNValueAtDepth(borehole, 1) * 100, 0.5);
+                var EI = Ep * (candidate.I || 0);
+                if (EI > 0 && kh0 > 0) {
+                    var beta = Math.pow(kh0 * D / (4 * EI), 0.25);
+                    Ha = EI * Math.pow(beta, 3) * 0.01 / 1.5;
+                }
+            } catch(e) {}
             return {
-                Qa: Qa,
-                Qu: Qu,
-                Qs: Qs,
-                Qp: Qp,
-                St: St,
-                Ha: Ha,
-                safetyFactor: params.safetyFactor,
-                costIndex: costIndex
+                candidate: candidate,
+                pileLength: pileLength,
+                bearingDepth: bearingDepth,
+                Qs: Qs, Qp: Qp, Qu: Qu,
+                Qa: Qa, Qa_ground: Qa_ground, Qa_material: Qa_material,
+                governedBy: governedBy,
+                Se: Se, Sp: Sp, Sps: Sps, St: St,
+                Ha: Ha, safetyFactor: safetyFactor
             };
+        }
+
+        function scorePileCandidates(results, designLoad, allowableSettlement) {
+            allowableSettlement = allowableSettlement || 25;
+            var minCost = Infinity, maxCost = 0;
+            results.forEach(function(r) {
+                if (r.totalCost < minCost) minCost = r.totalCost;
+                if (r.totalCost > maxCost) maxCost = r.totalCost;
+            });
+            results.forEach(function(r) {
+                var score = 0;
+                // Capacity score (30 pts)
+                if (r.Qa >= designLoad) score += 30;
+                else score += Math.max(0, 30 * (r.Qa / designLoad));
+                // Settlement score (25 pts)
+                if (r.St <= allowableSettlement) score += 25;
+                else if (r.St <= allowableSettlement * 1.2) score += 15;
+                else score += Math.max(0, 25 * (1 - (r.St - allowableSettlement) / allowableSettlement));
+                // Cost score (30 pts)
+                var costRange = maxCost - minCost;
+                if (costRange > 0) score += 30 * (1 - (r.totalCost - minCost) / costRange);
+                else score += 30;
+                // Material utilization (15 pts)
+                var utilization = r.Qa > 0 ? designLoad / r.Qa : 0;
+                if (utilization >= 0.6 && utilization <= 1.0) score += 15 * (utilization > 0.85 ? 1 : utilization / 0.85);
+                else if (utilization > 1.0) score += 5;
+                else score += 15 * (utilization / 0.6);
+                r.score = Math.round(Math.max(0, Math.min(100, score)));
+                if (r.Qa >= designLoad && r.St <= allowableSettlement) {
+                    r.judgment = r.score >= 85 ? '★최적' : '적합';
+                } else {
+                    r.judgment = '주의';
+                }
+            });
+            results.sort(function(a, b) { return b.score - a.score; });
+            if (results.length > 0 && results[0].judgment !== '주의') results[0].judgment = '★최적';
+            return results;
+        }
+
+        function formatKRW(value) {
+            if (value >= 1e8) return (value / 1e8).toFixed(1) + '억원';
+            if (value >= 1e4) return Math.round(value / 1e4) + '만원';
+            return Math.round(value).toLocaleString() + '원';
+        }
+
+        function runPileComparison() {
+            if (!boreholeData || boreholeData.length === 0) {
+                showToast('시추공 데이터를 먼저 업로드하세요.', 'warning');
+                return;
+            }
+            var designLoad = parseFloat(document.getElementById('compDesignLoad').value) || 800;
+            var safetyFactor = parseFloat(document.getElementById('compSafetyFactor').value) || 3;
+            var boreholeName = document.getElementById('compBoreholeSelect').value;
+            var borehole = boreholeData.find(function(b) { return b.hole_no === boreholeName; });
+            if (!borehole) { showToast('시추공을 선택하세요.', 'warning'); return; }
+            var candidates = buildPileCandidateList();
+            var results = [];
+            candidates.forEach(function(c) {
+                var r = calculatePileComparisonCase(borehole, c, safetyFactor);
+                if (r) {
+                    var unitCost = getCompUnitCost(c.type, c.spec);
+                    var reqCount = r.Qa >= designLoad ? 1 : (r.Qa > 0 ? Math.ceil(designLoad / r.Qa) : 99);
+                    r.unitCost = unitCost;
+                    r.requiredCount = reqCount;
+                    r.totalCost = unitCost * r.pileLength * reqCount;
+                    results.push(r);
+                }
+            });
+            if (results.length === 0) { showToast('계산 가능한 말뚝이 없습니다.', 'error'); return; }
+            var scored = scorePileCandidates(results, designLoad, 25);
+            pileComparisonResults = scored;
+            displayPileComparisonResults(scored, designLoad, safetyFactor, boreholeName);
+            showToast(scored.length + '종 말뚝 비교 완료', 'success');
+        }
+
+        function displayPileComparisonResults(scored, designLoad, safetyFactor, boreholeName) {
+            document.getElementById('compResults').style.display = 'block';
+            var optimal = scored[0];
+            var minCostItem = scored.reduce(function(a, b) { return a.totalCost < b.totalCost ? a : b; });
+            document.getElementById('compOptimalLabel').textContent = optimal.candidate.label;
+            document.getElementById('compMinCostLabel').textContent = minCostItem.candidate.label + ' (' + formatKRW(minCostItem.totalCost) + ')';
+            document.getElementById('compAnalyzedCount').textContent = scored.length + '개 말뚝 / ' + boreholeName;
+            document.getElementById('compConditionText').textContent = '설계 조건: 설계하중 ' + designLoad + ' kN, 안전율 ' + safetyFactor.toFixed(1) + ', 시추공 ' + boreholeName;
+            var topCandidates = scored.slice(0, 5);
+            renderComparisonTable(topCandidates, designLoad);
+            renderRecommendationDetail(topCandidates);
+            renderAllResultsTable(scored);
+        }
+
+        function renderComparisonTable(topCandidates, designLoad) {
+            var headerRow = '<tr><th style="min-width:120px;background:#1a237e;color:#fff;">항목</th>';
+            topCandidates.forEach(function(r) {
+                var judgColor = r.judgment === '★최적' ? '#2e7d32' : (r.judgment === '적합' ? '#1565c0' : '#e65100');
+                headerRow += '<th style="text-align:center;min-width:140px;"><strong>' + r.candidate.label + '</strong><br><span style="color:' + judgColor + ';font-size:0.85rem;">' + r.judgment + '</span></th>';
+            });
+            headerRow += '</tr>';
+            document.getElementById('compTableHeader').innerHTML = headerRow;
+            var rows = [
+                { label: '말뚝 제원', fn: function(r) { return 'Ø' + (r.candidate.diameter * 1000).toFixed(0) + 'mm, t=' + (r.candidate.thickness * 1000).toFixed(1) + 'mm'; }},
+                { label: '말뚝 길이', fn: function(r) { return r.pileLength.toFixed(1) + ' m'; }},
+                { label: '주면마찰력 (Qs)', fn: function(r) { return Math.round(r.Qs) + ' kN'; }},
+                { label: '선단지지력 (Qp)', fn: function(r) { return Math.round(r.Qp) + ' kN'; }},
+                { label: '허용지지력 (Qa)', fn: function(r) { return '<strong style="color:#1565c0;">' + Math.round(r.Qa) + ' kN</strong><br><small>FS=' + r.safetyFactor.toFixed(1) + ', ' + (r.governedBy === 'ground' ? '지반 지배' : '재료 지배') + '</small>'; }},
+                { label: '침하량 (St)', fn: function(r) { var color = r.St <= 25 ? '#2e7d32' : '#c62828'; return '<span style="color:' + color + ';">' + r.St.toFixed(1) + ' mm</span><br><small>허용: 25mm</small>'; }},
+                { label: '소요 본수', fn: function(r) { return '<strong>' + r.requiredCount + '본</strong>'; }},
+                { label: '개략공사비', fn: function(r) { return '<strong style="color:#1565c0;">' + formatKRW(r.totalCost) + '</strong><br><small>' + r.requiredCount + '본 × ' + formatKRW(r.unitCost * r.pileLength) + '</small>'; }},
+                { label: '종합 점수', fn: function(r) {
+                    var barColor = r.score >= 85 ? '#4caf50' : (r.score >= 70 ? '#1976d2' : '#ff9800');
+                    return '<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;background:#e0e0e0;border-radius:4px;height:12px;"><div style="width:' + r.score + '%;background:' + barColor + ';height:100%;border-radius:4px;"></div></div><strong>' + r.score + '</strong></div>';
+                }}
+            ];
+            var bodyHtml = '';
+            rows.forEach(function(row) {
+                bodyHtml += '<tr><td style="font-weight:600;background:#f5f5f5;">' + row.label + '</td>';
+                topCandidates.forEach(function(r) { bodyHtml += '<td style="text-align:center;">' + row.fn(r) + '</td>'; });
+                bodyHtml += '</tr>';
+            });
+            document.getElementById('compTableBody').innerHTML = bodyHtml;
+        }
+
+        function renderRecommendationDetail(topCandidates) {
+            var html = '<h3 style="margin-bottom:15px;color:var(--primary-navy);">종합 판정</h3>';
+            var best = topCandidates[0];
+            html += '<div style="background:#e8f5e9;padding:15px 20px;border-radius:8px;border-left:4px solid #4caf50;margin-bottom:15px;">';
+            html += '<strong style="font-size:1.1rem;">★ 추천: ' + best.candidate.label + ' (' + best.pileLength.toFixed(1) + 'm)';
+            if (best.Qa >= parseFloat(document.getElementById('compDesignLoad').value)) {
+                html += ' — ' + best.requiredCount + '본으로 설계하중 만족 (Qa=' + Math.round(best.Qa) + 'kN ≥ ' + document.getElementById('compDesignLoad').value + 'kN)';
+            }
+            html += '</strong><br><small style="color:#2e7d32;">허용지지력 ' + Math.round(best.Qa) + 'kN, 침하 ' + best.St.toFixed(1) + 'mm, ' + best.requiredCount + '본, 총 비용 ' + formatKRW(best.totalCost) + '</small></div>';
+            topCandidates.forEach(function(r, idx) {
+                var bgColor = idx === 0 ? '#f3f9ff' : '#fafafa';
+                var borderColor = idx === 0 ? '#1976d2' : '#e0e0e0';
+                html += '<div style="background:' + bgColor + ';padding:12px 16px;border-radius:6px;border:1px solid ' + borderColor + ';margin-bottom:8px;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+                html += '<strong>' + (idx + 1) + '순위: ' + r.candidate.label + '</strong>';
+                var judgColor = r.judgment === '★최적' ? '#2e7d32' : (r.judgment === '적합' ? '#1565c0' : '#e65100');
+                html += '<span style="color:' + judgColor + ';font-weight:600;">' + r.judgment + '</span>';
+                html += '<span>점수: ' + r.score + '/100</span></div>';
+                html += '<ul style="margin:5px 0 0 20px;font-size:0.9rem;color:#555;">';
+                var dl = parseFloat(document.getElementById('compDesignLoad').value);
+                if (r.Qa >= dl) html += '<li>' + r.requiredCount + '본으로 설계하중 만족 (Qa=' + Math.round(r.Qa) + 'kN ≥ ' + dl + 'kN)</li>';
+                else html += '<li style="color:#c62828;">설계하중 미달 (Qa=' + Math.round(r.Qa) + 'kN < ' + dl + 'kN, ' + r.requiredCount + '본 필요)</li>';
+                if (r.St <= 25) html += '<li>침하량 만족 (' + r.St.toFixed(1) + 'mm < 25mm)</li>';
+                else html += '<li style="color:#c62828;">침하량 초과 (' + r.St.toFixed(1) + 'mm > 25mm)</li>';
+                var util = dl > 0 && r.Qa > 0 ? (dl / r.Qa * 100).toFixed(0) : 0;
+                if (util >= 70 && util <= 100) html += '<li>재료 효율 우수 (활용률 ' + util + '%)</li>';
+                else if (util < 70) html += '<li>재료 여유 큼 (활용률 ' + util + '%)</li>';
+                html += '</ul></div>';
+            });
+            document.getElementById('compRecommendationDetail').innerHTML = html;
+        }
+
+        function renderAllResultsTable(scored) {
+            var html = '';
+            scored.forEach(function(r, idx) {
+                var judgColor = r.judgment === '★최적' ? '#2e7d32' : (r.judgment === '적합' ? '#1565c0' : '#e65100');
+                html += '<tr>';
+                html += '<td style="text-align:center;">' + (idx + 1) + '</td>';
+                html += '<td>' + (r.candidate.type === 'phc' ? 'PHC' : '강관') + '</td>';
+                html += '<td>' + r.candidate.label + '</td>';
+                html += '<td style="text-align:right;">' + Math.round(r.Qa) + '</td>';
+                html += '<td style="text-align:right;">' + r.St.toFixed(1) + '</td>';
+                html += '<td style="text-align:center;">' + r.requiredCount + '</td>';
+                html += '<td style="text-align:right;">' + formatKRW(r.totalCost) + '</td>';
+                html += '<td style="text-align:center;font-weight:600;">' + r.score + '</td>';
+                html += '<td style="text-align:center;color:' + judgColor + ';font-weight:600;">' + r.judgment + '</td>';
+                html += '</tr>';
+            });
+            document.getElementById('compAllResultsBody').innerHTML = html;
+        }
+
+        function toggleCompCostPanel() {
+            var panel = document.getElementById('compCostPanel');
+            var icon = document.getElementById('compCostToggleIcon');
+            if (panel.style.display === 'none') { panel.style.display = 'block'; icon.innerHTML = '&#9650;'; }
+            else { panel.style.display = 'none'; icon.innerHTML = '&#9660;'; }
+        }
+
+        function toggleCompAllResults() {
+            var panel = document.getElementById('compAllResultsPanel');
+            var icon = document.getElementById('compAllResultsHead');
+            if (panel.style.display === 'none') { panel.style.display = 'block'; icon.innerHTML = '&#9650;'; }
+            else { panel.style.display = 'none'; icon.innerHTML = '&#9660;'; }
+        }
+
+        function showCompConditionChange() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetCompCostDefaults() {
+            for (var type in PILE_UNIT_COSTS) {
+                for (var spec in PILE_UNIT_COSTS[type]) {
+                    var inputId;
+                    if (type === 'phc') inputId = 'compCost_phc_' + spec.replace('-', '');
+                    else inputId = 'compCost_steel_' + Math.round(parseFloat(spec));
+                    var el = document.getElementById(inputId);
+                    if (el) el.value = PILE_UNIT_COSTS[type][spec].unitCost;
+                }
+            }
+            showToast('단가가 기본값으로 복원되었습니다.', 'info');
+        }
+
+        function resetPileComparison() {
+            document.getElementById('compResults').style.display = 'none';
+            document.getElementById('compDesignLoad').value = '800';
+            if (!document.getElementById('compOverrideSF').checked) {
+                var mainSF = document.getElementById('sfVertical');
+                if (mainSF) document.getElementById('compSafetyFactor').value = mainSF.value;
+            }
+            pileComparisonResults = [];
+            showToast('초기화되었습니다.', 'info');
         }
 
         function getPileByDiameterAndType(diameter, pileType) {
@@ -11186,328 +11189,6 @@ ${htmlContent}
             return 20;
         }
 
-        function displaySensitivityResults(results, param1, param2, param1Values, param2Values, metrics) {
-            // Show results section
-            document.getElementById('sensitivityResults').style.display = 'block';
-            
-            // Update heatmap
-            updateSensitivityHeatmap(results, param1, param2, param1Values, param2Values, metrics);
-            
-            // Update comparison table
-            updateSensitivityComparisonTable(results, param1, param2, param1Values, param2Values, metrics);
-            
-            // Update detail table
-            updateSensitivityDetailTable(results, param1, param2, param1Values, param2Values, metrics);
-        }
-
-        function updateSensitivityHeatmap(results, param1, param2, param1Values, param2Values, metrics) {
-            const ctx = document.getElementById('sensitivityHeatmapChart');
-            if (!ctx) return;
-            
-            if (sensitivityChart) {
-                sensitivityChart.destroy();
-                sensitivityChart = null;
-            }
-
-            // Prepare data for heatmap
-            // Priority: allowable > horizontal > settlement > cost
-            const primaryMetric = metrics.allowable ? 'Qa' :
-                                 (metrics.horizontal ? 'Ha' :
-                                 (metrics.settlement ? 'St' : 'costIndex'));
-            
-            // Create matrix data
-            const matrixData = [];
-            const labelsX = param1Values.map(v => formatParamValue(param1, v));
-            const labelsY = param2Values.map(v => formatParamValue(param2, v));
-            
-            for (let j = 0; j < param2Values.length; j++) {
-                const row = [];
-                for (let i = 0; i < param1Values.length; i++) {
-                    const result = results.find(r => r.param1Index === i && r.param2Index === j);
-                    row.push(result ? result[primaryMetric] : 0);
-                }
-                matrixData.push(row);
-            }
-            
-            // Create chart with heatmap-like visualization using bar chart
-            const datasets = labelsY.map((label, j) => ({
-                label: label,
-                data: matrixData[j],
-                backgroundColor: matrixData[j].map(val => getHeatmapColor(val, primaryMetric, results)),
-                borderColor: 'rgba(255, 255, 255, 0.8)',
-                borderWidth: 1
-            }));
-            
-            sensitivityChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labelsX,
-                    datasets: datasets
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: { display: true, text: getParamLabel(param1) },
-                            stacked: false
-                        },
-                        y: {
-                            title: { display: true, text: getParamLabel(param2) },
-                            stacked: false
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const result = results.find(r => 
-                                        r.param1Index === context.dataIndex && 
-                                        r.param2Index === context.datasetIndex
-                                    );
-                                    if (!result) return '';
-                                    
-                                    let tooltip = `${getMetricLabel(primaryMetric)}: ${formatMetricValue(primaryMetric, result[primaryMetric])}`;
-                                    if (metrics.allowable && primaryMetric !== 'Qa') {
-                                        tooltip += `\n허용지지력: ${result.Qa.toFixed(0)} kN`;
-                                    }
-                                    if (metrics.horizontal && primaryMetric !== 'Ha') {
-                                        tooltip += `\n수평지지력: ${result.Ha.toFixed(0)} kN`;
-                                    }
-                                    if (metrics.settlement && primaryMetric !== 'St') {
-                                        tooltip += `\n침하량: ${(result.St || 0).toFixed(1)} mm`;
-                                    }
-                                    return tooltip;
-                                }
-                            }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        }
-                    }
-                }
-            });
-        }
-
-        function getHeatmapColor(value, metric, allResults) {
-            const values = allResults.map(r => r[metric]).filter(v => v > 0);
-            const min = Math.min(...values);
-            const max = Math.max(...values);
-            const range = max - min;
-            
-            if (range === 0) return 'rgba(128, 128, 128, 0.7)';
-            
-            const ratio = (value - min) / range;
-            
-            // Green (low) to Red (high) for most metrics
-            // For settlement, reverse (red = bad, green = good)
-            if (metric === 'St') {
-                // Settlement: lower is better (green), higher is worse (red)
-                const r = Math.round(255 * ratio);
-                const g = Math.round(255 * (1 - ratio));
-                return `rgba(${r}, ${g}, 0, 0.7)`;
-            } else if (metric === 'costIndex') {
-                // Cost index: lower is better (green), higher is worse (red)
-                const r = Math.round(255 * ratio);
-                const g = Math.round(255 * (1 - ratio));
-                return `rgba(${r}, ${g}, 0, 0.7)`;
-            } else {
-                // Qa, Ha: higher is better (green), lower is worse (red)
-                const r = Math.round(255 * (1 - ratio));
-                const g = Math.round(255 * ratio);
-                return `rgba(${r}, ${g}, 0, 0.7)`;
-            }
-        }
-
-        function formatParamValue(paramType, value) {
-            switch(paramType) {
-                case 'diameter': return `Ø${(value * 1000).toFixed(0)}`;
-                case 'pileType': return value === 'steel' ? '강관' : 'PHC';
-                case 'penetration': return `${parseFloat(value).toFixed(1)}m`;
-                case 'endBearingCoeff': return `${parseFloat(value).toFixed(0)}`;
-                case 'nValueFactor': return `×${parseFloat(value).toFixed(2)}`;
-                case 'safetyFactor': return `FS=${parseFloat(value).toFixed(1)}`;
-                case 'designStandard':
-                    const stdNames = {
-                        'structural_foundation_2015': '구조물기초',
-                        'highway_bridge_2015': '도로교',
-                        'building_foundation_2005': '건축기초'
-                    };
-                    return stdNames[value] || value;
-                default: return value.toString();
-            }
-        }
-
-        function getParamLabel(paramType) {
-            switch(paramType) {
-                case 'diameter': return '말뚝 직경';
-                case 'pileType': return '말뚝 종류';
-                case 'penetration': return '근입깊이';
-                case 'endBearingCoeff': return '선단지지력 계수';
-                case 'nValueFactor': return 'N값 보정계수';
-                case 'safetyFactor': return '안전율';
-                case 'designStandard': return '설계기준';
-                default: return paramType;
-            }
-        }
-
-        function getMetricLabel(metric) {
-            switch(metric) {
-                case 'Qa': return '허용지지력';
-                case 'Ha': return '수평지지력';
-                case 'St': return '침하량';
-                case 'costIndex': return '비용지수';
-                default: return metric;
-            }
-        }
-
-        function formatMetricValue(metric, value) {
-            switch(metric) {
-                case 'Qa': return `${value.toFixed(0)} kN`;
-                case 'Ha': return `${value.toFixed(0)} kN`;
-                case 'St': return `${value.toFixed(1)} mm`;
-                case 'costIndex': return value.toFixed(0);
-                default: return value.toFixed(2);
-            }
-        }
-
-        function updateSensitivityComparisonTable(results, param1, param2, param1Values, param2Values, metrics) {
-            const tbody = document.getElementById('sensitivityComparisonTableBody');
-            if (!tbody) return;
-
-            // Find base case (current design)
-            const basePile = getCurrentPile();
-            const baseDiameter = basePile.diameter;
-            const basePileType = basePile.type || 'phc';
-            const basePenetration = parseFloat(document.getElementById('penetrationDepth')?.value) || 1.0;
-            const baseSafetyFactor = parseFloat(document.getElementById('sfVertical').value) || 3.0;
-            const baseEndBearingCoeff = parseFloat(document.getElementById('endBearingCoefficient').value) || 300;
-            const baseDesignStandard = getCurrentDesignStandard();
-            const baseNValueFactor = 1.0;
-
-            // Helper function to get base value for a parameter
-            const getBaseValue = (paramType) => {
-                switch(paramType) {
-                    case 'diameter': return baseDiameter;
-                    case 'pileType': return basePileType;
-                    case 'penetration': return basePenetration;
-                    case 'endBearingCoeff': return baseEndBearingCoeff;
-                    case 'safetyFactor': return baseSafetyFactor;
-                    case 'designStandard': return baseDesignStandard;
-                    case 'nValueFactor': return baseNValueFactor;
-                    default: return null;
-                }
-            };
-
-            // Helper function to compare values (handles both numeric and string)
-            const compareValue = (resultValue, baseValue, paramType) => {
-                if (paramType === 'pileType' || paramType === 'designStandard') {
-                    return resultValue === baseValue;
-                }
-                return Math.abs(parseFloat(resultValue) - parseFloat(baseValue)) < 0.01;
-            };
-
-            const baseResult = results.find(r => {
-                const p1Match = compareValue(r.param1Value, getBaseValue(param1), param1);
-                const p2Match = compareValue(r.param2Value, getBaseValue(param2), param2);
-                return p1Match && p2Match;
-            }) || results[0];
-            
-            // Find top 3 alternatives
-            const alternatives = results
-                .filter(r => r !== baseResult)
-                .sort((a, b) => b.Qa - a.Qa)
-                .slice(0, 3);
-            
-            // Get parameter values for each case
-            const getParamValue = (result, param) => {
-                if (param === param1) {
-                    return formatParamValue(param, result.param1Value);
-                } else if (param === param2) {
-                    return formatParamValue(param, result.param2Value);
-                }
-                // Get from base if not in analysis
-                if (param === 'diameter') return formatParamValue('diameter', baseDiameter);
-                if (param === 'pileType') return formatParamValue('pileType', basePileType);
-                if (param === 'penetration') return formatParamValue('penetration', basePenetration);
-                if (param === 'endBearingCoeff') return formatParamValue('endBearingCoeff', baseEndBearingCoeff);
-                return '-';
-            };
-            
-            const rows = [
-                {
-                    label: '설계 조건',
-                    base: `${getParamLabel(param1)}: ${getParamValue(baseResult, param1)}<br>${getParamLabel(param2)}: ${getParamValue(baseResult, param2)}`,
-                    alts: alternatives.map(a => `${getParamLabel(param1)}: ${getParamValue(a, param1)}<br>${getParamLabel(param2)}: ${getParamValue(a, param2)}`)
-                },
-                { label: '허용지지력', base: `${baseResult.Qa.toFixed(0)} kN`, alts: alternatives.map(a => `${a.Qa.toFixed(0)} kN`) },
-                { label: '침하량', base: `${baseResult.St.toFixed(1)} mm`, alts: alternatives.map(a => `${a.St.toFixed(1)} mm`) },
-                ...(metrics.horizontal ? [{ label: '수평지지력', base: `${baseResult.Ha.toFixed(0)} kN`, alts: alternatives.map(a => `${a.Ha.toFixed(0)} kN`) }] : []),
-                { 
-                    label: '비용지수<br><span style="font-size: 0.8rem; color: var(--text-secondary);">(현행=100)</span>', 
-                    base: baseResult.costIndex.toFixed(0), 
-                    alts: alternatives.map(a => {
-                        const diff = a.costIndex - baseResult.costIndex;
-                        const sign = diff > 0 ? '+' : '';
-                        return `${a.costIndex.toFixed(0)} <span style="font-size: 0.85rem; color: ${diff < 0 ? 'var(--status-pass)' : diff > 0 ? 'var(--status-fail)' : 'var(--text-secondary)'};">(${sign}${diff.toFixed(0)})</span>`;
-                    })
-                }
-            ];
-            
-            tbody.innerHTML = rows.map(row => `
-                <tr>
-                    <td style="font-weight: 600;">${row.label}</td>
-                    <td>${row.base}</td>
-                    ${row.alts.map(alt => `<td>${alt}</td>`).join('')}
-                </tr>
-            `).join('');
-        }
-
-        function updateSensitivityDetailTable(results, param1, param2, param1Values, param2Values, metrics) {
-            const thead = document.getElementById('sensitivityDetailTableHead');
-            const tbody = document.getElementById('sensitivityDetailTableBody');
-            if (!thead || !tbody) return;
-            
-            // Create header
-            let headerHTML = `<tr><th>${getParamLabel(param2)}</th>`;
-            param1Values.forEach(val => {
-                headerHTML += `<th>${formatParamValue(param1, val)}</th>`;
-            });
-            headerHTML += `</tr>`;
-            thead.innerHTML = headerHTML;
-            
-            // Create body
-            let bodyHTML = '';
-            for (let j = 0; j < param2Values.length; j++) {
-                bodyHTML += `<tr><td style="font-weight: 600;">${formatParamValue(param2, param2Values[j])}</td>`;
-                for (let i = 0; i < param1Values.length; i++) {
-                    const result = results.find(r => r.param1Index === i && r.param2Index === j);
-                    if (result) {
-                        let cellContent = '';
-                        if (metrics.allowable) cellContent += `지지력: ${result.Qa.toFixed(0)}<br>`;
-                        if (metrics.horizontal) cellContent += `수평: ${result.Ha.toFixed(0)}<br>`;
-                        if (metrics.settlement) cellContent += `침하: ${(result.St || 0).toFixed(1)}<br>`;
-                        if (metrics.cost) cellContent += `비용: ${result.costIndex.toFixed(0)}`;
-                        bodyHTML += `<td style="font-size: 0.9rem;">${cellContent}</td>`;
-                    } else {
-                        bodyHTML += `<td>-</td>`;
-                    }
-                }
-                bodyHTML += `</tr>`;
-            }
-            tbody.innerHTML = bodyHTML;
-        }
-
-        function resetSensitivityAnalysis() {
-            document.getElementById('sensitivityResults').style.display = 'none';
-            if (sensitivityChart) {
-                sensitivityChart.destroy();
-                sensitivityChart = null;
-            }
-            updateSensitivityRangeControls();
-        }
 
         // ============================================================
         // 입력 검토 탭 관련 함수들
