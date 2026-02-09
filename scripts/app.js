@@ -13430,7 +13430,7 @@ ${htmlContent}
          * 지원 형식: "E.L(+)51.05m", "EL.51.05m", 숫자
          */
         function getDashboardGL(bh) {
-            if (!bh || !bh.metadata) return null;
+            if (!bh || !bh.metadata) return 0;
 
             // GROUND_SURFACE_LEVEL 파싱 (E.L(+)51.05m 형식)
             const gsl = bh.metadata.GROUND_SURFACE_LEVEL;
@@ -13443,7 +13443,8 @@ ${htmlContent}
             const el = parseFloat(bh.metadata.Excavation_level);
             if (!isNaN(el)) return el;
 
-            return null;
+            // 표고값이 없는 경우 기본값 0.0m
+            return 0;
         }
 
         /**
@@ -14297,6 +14298,7 @@ ${htmlContent}
 
         /**
          * 대시보드 데이터를 Excel(CSV)로 내보내기
+         * Sheet1: 시추공 요약, Sheet2: 시추공별 깊이별 N값 전수
          */
         function exportDashboardToExcel() {
             if (!boreholeData || boreholeData.length === 0) {
@@ -14304,37 +14306,128 @@ ${htmlContent}
                 return;
             }
 
-            // CSV 헤더
+            // --- Sheet 1: 시추공 요약 ---
             let csv = '\uFEFF'; // UTF-8 BOM
-            csv += '시추공,지표고(EL.m),지하수위(EL.m),풍화암(EL.m),연암(EL.m),시추종료(EL.m),토질구성\n';
+            csv += '=== 시추공 요약 ===\n';
+            csv += '시추공,지표고(EL.m),지하수위(GL.m),풍화암심도(GL.m),연암심도(GL.m),시추종료심도(GL.m),토질구성\n';
 
-            // 데이터 행
             boreholeData.forEach(bh => {
                 const holeNo = bh.hole_no || '';
                 const gl = getDashboardGL(bh);
-                const gw = getDashboardGWL(bh);
-                const wr = getDashboardWRLevel(bh);
-                const sr = getDashboardSRLevel(bh);
-                const end = getDashboardEndLevel(bh);
-
-                // 토질 구성
+                const gwlDepth = bh.metadata ? parseGroundwaterLevel(bh.metadata.GROUND_WATER_LEVEL) : null;
+                // 풍화암 심도 (GL- 기준)
+                let wrDepth = null;
+                let srDepth = null;
+                let endDepth = null;
+                if (bh.soil_data) {
+                    for (const layer of bh.soil_data) {
+                        if (layer.soil_name && layer.soil_name.includes('풍화암') && wrDepth === null) {
+                            const m = layer.depth_range ? layer.depth_range.match(/([\d.]+)/) : null;
+                            if (m) wrDepth = parseFloat(m[1]);
+                        }
+                        if (layer.soil_name && layer.soil_name.includes('연암') && srDepth === null) {
+                            const m = layer.depth_range ? layer.depth_range.match(/([\d.]+)/) : null;
+                            if (m) srDepth = parseFloat(m[1]);
+                        }
+                        const endMatch = layer.depth_range ? layer.depth_range.match(/~\s*([\d.]+)/) : null;
+                        if (endMatch) endDepth = parseFloat(endMatch[1]);
+                    }
+                }
                 const soilList = bh.soil_data ? bh.soil_data.map(l => l.soil_name).join(' > ') : '';
 
                 csv += `${holeNo},`;
                 csv += `${gl !== null ? gl.toFixed(2) : '-'},`;
-                csv += `${gw !== null ? gw.toFixed(2) : '-'},`;
-                csv += `${wr !== null ? wr.toFixed(2) : '-'},`;
-                csv += `${sr !== null ? sr.toFixed(2) : '-'},`;
-                csv += `${end !== null ? end.toFixed(2) : '-'},`;
+                csv += `${gwlDepth !== null ? Math.abs(gwlDepth).toFixed(1) : '-'},`;
+                csv += `${wrDepth !== null ? wrDepth.toFixed(1) : '-'},`;
+                csv += `${srDepth !== null ? srDepth.toFixed(1) : '-'},`;
+                csv += `${endDepth !== null ? endDepth.toFixed(1) : '-'},`;
                 csv += `"${soilList}"\n`;
+            });
+
+            // --- Sheet 2: N값 전수 데이터 ---
+            csv += '\n\n=== 시추공별 N값 데이터 ===\n';
+            csv += '시추공,시료번호,심도(GL.m),타격횟수(Hits),N값,지층명,채취방법\n';
+
+            boreholeData.forEach(bh => {
+                const holeNo = bh.hole_no || '';
+                if (!bh.soil_data) return;
+                bh.soil_data.forEach(layer => {
+                    if (!layer.samples || !Array.isArray(layer.samples)) return;
+                    layer.samples.forEach(sample => {
+                        const sampleNo = sample.Sample_number || sample.sample_number || '-';
+                        const depth = sample.Depth !== undefined ? sample.Depth : (sample.depth !== undefined ? sample.depth : '-');
+                        const hits = sample.Hits || sample.hits || '-';
+                        const nVal = extractNValue(String(hits));
+                        const soilName = layer.soil_name || '-';
+                        const method = sample.Method || sample.method || '-';
+
+                        csv += `${holeNo},`;
+                        csv += `${sampleNo},`;
+                        csv += `${depth},`;
+                        csv += `${hits},`;
+                        csv += `${nVal !== null ? nVal : '-'},`;
+                        csv += `"${soilName}",`;
+                        csv += `"${method}"\n`;
+                    });
+                });
+            });
+
+            // --- Sheet 3: 깊이별 N값 매트릭스 (시추공 가로, 깊이 세로) ---
+            csv += '\n\n=== N값 깊이별 매트릭스 ===\n';
+            // 모든 시추공에서 샘플 깊이 수집
+            const allDepths = new Set();
+            boreholeData.forEach(bh => {
+                if (!bh.soil_data) return;
+                bh.soil_data.forEach(layer => {
+                    if (!layer.samples) return;
+                    layer.samples.forEach(sample => {
+                        const d = parseFloat(sample.Depth !== undefined ? sample.Depth : sample.depth);
+                        if (!isNaN(d)) allDepths.add(d);
+                    });
+                });
+            });
+            const sortedDepths = Array.from(allDepths).sort((a, b) => a - b);
+
+            // 헤더: 심도(m) + 각 시추공명
+            csv += '심도(GL.m)';
+            boreholeData.forEach(bh => { csv += ',' + (bh.hole_no || ''); });
+            csv += '\n';
+
+            // 각 깊이별 N값 행
+            sortedDepths.forEach(depth => {
+                csv += depth.toFixed(1);
+                boreholeData.forEach(bh => {
+                    let found = false;
+                    if (bh.soil_data) {
+                        for (const layer of bh.soil_data) {
+                            if (!layer.samples) continue;
+                            for (const sample of layer.samples) {
+                                const sd = parseFloat(sample.Depth !== undefined ? sample.Depth : sample.depth);
+                                if (Math.abs(sd - depth) < 0.01) {
+                                    const n = extractNValue(String(sample.Hits || sample.hits || ''));
+                                    csv += ',' + (n !== null ? n : '-');
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (found) break;
+                        }
+                    }
+                    if (!found) csv += ',';
+                });
+                csv += '\n';
             });
 
             // 다운로드
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = '시추공_대시보드.csv';
+            link.download = '시추공_대시보드_N값포함.csv';
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            showToast('Excel 내보내기 완료 (' + boreholeData.length + '개 시추공)', 'success');
         }
 
         /**
