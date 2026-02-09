@@ -10849,7 +10849,8 @@ ${htmlContent}
                     var midDepth = (segTop + segBot) / 2;
                     var N = getNValueAtDepth(borehole, midDepth);
                     N = Math.min(N, 50);
-                    var soilClass = classifySoilByName(sl.soil_name || '');
+                    var soilClassResult = classifySoilBehavior(sl.soil_name || '');
+                    var soilClass = (soilClassResult && soilClassResult.behavior === 'cohesive') ? 'cohesive' : 'sandy';
                     var fs;
                     if (soilClass === 'cohesive') {
                         var cu = N <= 15 ? N * 6.25 : (N <= 30 ? 75 + (N - 15) * 3.33 : 125);
