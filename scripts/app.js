@@ -14440,3 +14440,97 @@ ${htmlContent}
                 dashboardTab.click();
             }
         }
+
+        // ============================================================
+        // iframe postMessage 통합 (GeoAI Platform)
+        // ============================================================
+
+        // iframe 로드 완료 시 부모 창에 READY 전송
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.parent !== window) {
+                window.parent.postMessage({ type: 'PILE_READY' }, '*');
+            }
+        });
+
+        // 부모 창에서 보낸 메시지 수신
+        window.addEventListener('message', function(event) {
+            if (!event.data || typeof event.data !== 'object') return;
+
+            if (event.data.type === 'LOAD_BOREHOLE_DATA') {
+                var jsonData = event.data.data;
+                if (!jsonData) return;
+
+                try {
+                    // 기존 파일 업로드와 동일한 데이터 처리 로직 실행
+                    processBoreholeData(jsonData);
+
+                    // 업로드 상태 UI 업데이트
+                    var uploadStatus = document.getElementById('uploadStatus');
+                    if (uploadStatus) {
+                        var count = boreholeData ? boreholeData.length : 0;
+                        uploadStatus.style.background = '#eceff1';
+                        uploadStatus.style.color = '#1a5f7a';
+                        uploadStatus.innerHTML = '<span style="color:#4CAF50">✅</span> Platform 데이터<br><small>' + count + '개 시추공 로드됨</small>';
+                    }
+
+                    // 부모 창에 데이터 로드 완료 알림
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'PILE_DATA_LOADED',
+                            count: boreholeData ? boreholeData.length : 0,
+                        }, '*');
+                    }
+
+                    // performAnalysis가 processBoreholeData 내에서 자동 호출됨
+                    // 계산 완료 후 결과 전송
+                    setTimeout(function() {
+                        if (calculationResults && calculationResults.length > 0 && window.parent !== window) {
+                            var results = calculationResults.map(function(r) {
+                                return {
+                                    borehole: r.borehole,
+                                    elevation: r.elevation,
+                                    pileLength: r.pileLength,
+                                    pileTipLevel: r.pileTipLevel,
+                                    Rp: r.Rp,
+                                    Rf: r.Rf,
+                                    Qu: r.Qu,
+                                    Ra: r.Ra,
+                                    Ha: r.Ha,
+                                    Qpull: r.Qpull,
+                                    St: r.St,
+                                    status: r.status,
+                                    passVertical: r.passVertical,
+                                    passHorizontal: r.passHorizontal,
+                                    passPullout: r.passPullout,
+                                    passSettlement: r.passSettlement
+                                };
+                            });
+                            window.parent.postMessage({
+                                type: 'CALCULATION_COMPLETE',
+                                data: results,
+                                count: results.length,
+                            }, '*');
+                        }
+                    }, 500);
+
+                } catch (error) {
+                    console.error('postMessage 데이터 처리 오류:', error);
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'PILE_ERROR',
+                            message: error.message,
+                        }, '*');
+                    }
+                }
+            }
+
+            // iframe 높이 요청에 응답
+            if (event.data.type === 'REQUEST_HEIGHT') {
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'PILE_HEIGHT',
+                        height: document.documentElement.scrollHeight,
+                    }, '*');
+                }
+            }
+        });
