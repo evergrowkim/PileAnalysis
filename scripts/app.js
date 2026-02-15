@@ -2386,7 +2386,19 @@
                         return;
                     }
 
-                    const data = JSON.parse(text);
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (parseErr) {
+                        // 잘린 JSON 복구 시도
+                        console.warn('[handleFileUpload] JSON 파싱 실패, 잘린 JSON 복구 시도...', parseErr.message);
+                        data = tryRecoverTruncatedJSON(text);
+                        if (data) {
+                            showToast('JSON 파일이 불완전하여 복구된 데이터를 사용합니다.', 'warning');
+                        } else {
+                            throw parseErr;
+                        }
+                    }
                     if (!data) {
                         if (uploadStatus) {
                             uploadStatus.style.background = '#ffebee';
@@ -2428,6 +2440,118 @@
             };
 
             reader.readAsText(file);
+        }
+
+        // ============================================================
+        // 잘린(truncated) JSON 복구 함수
+        // ============================================================
+        function tryRecoverTruncatedJSON(text) {
+            // 전략: 불완전한 마지막 객체를 제거하고 다양한 closing 조합으로 파싱 시도
+            try {
+                // 배열 내 마지막 불완전 객체를 잘라낼 수 있는 위치들 찾기
+                // },\n    { 패턴 = 배열 원소 경계
+                var match = text.match(/\}\s*,\s*\{[^}]*$/s);
+                if (match) {
+                    var trimmed = text.substring(0, match.index + 1); // } 까지
+                    // 가능한 closing 조합 시도 (가장 일반적인 구조 순서)
+                    var closings = [']}', ']}  ', ']\n}', '] }'];
+                    for (var c = 0; c < closings.length; c++) {
+                        try {
+                            var recovered = JSON.parse(trimmed + closings[c]);
+                            var arr = recovered.extracted_data || recovered.boreholes || recovered;
+                            if (Array.isArray(arr) && arr.length > 0) {
+                                console.log('[tryRecoverTruncatedJSON] 복구 성공: ' + arr.length + '개 시추공');
+                                return recovered;
+                            }
+                        } catch (e) { /* 다음 시도 */ }
+                    }
+                }
+
+                // 폴백: 뒤에서부터 } 위치를 찾아가며 시도
+                var lastBrace = text.lastIndexOf('}');
+                var minPos = Math.floor(text.length * 0.3);
+                while (lastBrace > minPos) {
+                    var trimmed = text.substring(0, lastBrace + 1);
+                    var closings = ['', '}', ']}', ']]}', ']}  '];
+                    for (var c = 0; c < closings.length; c++) {
+                        try {
+                            var recovered = JSON.parse(trimmed + closings[c]);
+                            var arr = recovered.extracted_data || recovered.boreholes || recovered;
+                            if (Array.isArray(arr) && arr.length > 0) {
+                                console.log('[tryRecoverTruncatedJSON] 폴백 복구 성공: ' + arr.length + '개 시추공');
+                                return recovered;
+                            }
+                        } catch (e) { /* 다음 시도 */ }
+                    }
+                    lastBrace = text.lastIndexOf('}', lastBrace - 1);
+                }
+
+                return null;
+            } catch (e) {
+                console.warn('[tryRecoverTruncatedJSON] 복구 실패:', e.message);
+                return null;
+            }
+        }
+
+        // ============================================================
+        // L3 형식 (GeoAI export) → 내부 형식 변환
+        // ============================================================
+        function convertL3Format(data) {
+            if (!data.boreholes || !Array.isArray(data.boreholes)) return null;
+
+            var converted = data.boreholes.map(function(bh) {
+                // metadata 구성
+                var metadata = bh.metadata || {};
+                if (!metadata.HOLE_NO) metadata.HOLE_NO = bh.hole_no || '';
+                if (!metadata.GROUND_SURFACE_LEVEL && bh.ground_elevation != null) {
+                    metadata.GROUND_SURFACE_LEVEL = 'E.L(+)' + bh.ground_elevation + 'm';
+                }
+                if (!metadata.Excavation_level && bh.excavation_level != null) {
+                    metadata.Excavation_level = bh.excavation_level;
+                }
+                if (!metadata.GROUND_WATER_LEVEL && bh.water_table_depth != null) {
+                    metadata.GROUND_WATER_LEVEL = 'GL(-)' + bh.water_table_depth + 'm';
+                }
+
+                // soil_layers → soil_data 변환 (spt_data를 samples로 매핑)
+                var sptData = bh.spt_data || [];
+                var soilData = (bh.soil_layers || []).map(function(layer) {
+                    // 이 지층 깊이 범위에 해당하는 SPT 데이터를 samples로 변환
+                    var depthFrom = layer.depth_from != null ? layer.depth_from : 0;
+                    var depthTo = layer.depth_to != null ? layer.depth_to : 999;
+                    var samples = [];
+                    var sampleNum = 1;
+                    sptData.forEach(function(spt) {
+                        if (spt.depth_m >= depthFrom && spt.depth_m <= depthTo) {
+                            var hits = spt.hits_raw || (spt.n_value + '/30');
+                            samples.push({
+                                Sample_number: String(sampleNum++),
+                                Depth: spt.depth_m,
+                                Hits: hits,
+                                Method: '표준관입시험'
+                            });
+                        }
+                    });
+
+                    return {
+                        depth_range: layer.depth_range || (depthFrom + '~' + depthTo + 'm'),
+                        soil_name: layer.soil_name || '',
+                        soil_color: layer.soil_color || '',
+                        observation: layer.observation || '',
+                        samples: samples
+                    };
+                });
+
+                return {
+                    hole_no: bh.hole_no || metadata.HOLE_NO || '',
+                    metadata: metadata,
+                    soil_data: soilData,
+                    sample_data: []
+                };
+            });
+
+            console.log('[convertL3Format] L3 형식 변환 완료: ' + converted.length + '개 시추공');
+            return { extracted_data: converted };
         }
 
         // Helper function to parse elevation from various formats
@@ -2602,6 +2726,12 @@
 
         function processBoreholeData(data) {
             try {
+                // L3 형식 (GeoAI export) 자동 감지 및 변환
+                if (data.boreholes && Array.isArray(data.boreholes) && !data.extracted_data) {
+                    console.log('[processBoreholeData] L3 형식 감지 → 내부 형식으로 변환');
+                    data = convertL3Format(data);
+                }
+
                 boreholeData = data.extracted_data || data;
 
                 // Validate data structure
@@ -10748,9 +10878,9 @@ ${htmlContent}
             // Steel pipes (9 diameters with median thickness)
             var steelDias = [318.5, 355.6, 406.4, 457.2, 508.0, 558.8, 609.6, 711.2, 812.8];
             steelDias.forEach(function(dia) {
-                var specs = STEEL_PIPE_SPECS.diameters[dia];
+                var specs = STEEL_PIPE_SPECS.dimensions.find(function(d) { return d.diameter === dia; });
                 if (!specs) return;
-                var thicknesses = specs.thickness;
+                var thicknesses = specs.thicknesses;
                 var medianThk = thicknesses[Math.floor(thicknesses.length / 2)];
                 var D = dia / 1000;
                 var t = medianThk / 1000;
